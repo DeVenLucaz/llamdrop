@@ -222,6 +222,7 @@ def show_config():
     Shows all current values with source (user-set vs auto), then offers
     an edit menu so users never need to touch the JSON file manually.
     """
+    global _config_cache, _config_mtime
     GREEN  = "\033[32m"
     YELLOW = "\033[33m"
     CYAN   = "\033[36m"
@@ -287,11 +288,9 @@ def show_config():
                 try:
                     if os.path.exists(CONFIG_FILE):
                         os.remove(CONFIG_FILE)
-                    _config_cache.__class__  # just touch it
                 except Exception:
                     pass
                 # Force cache invalidation
-                global _config_cache, _config_mtime
                 _config_cache = None
                 _config_mtime = None
                 create_default_config()
