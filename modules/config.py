@@ -353,7 +353,6 @@ def show_config():
                         existing.pop(key, None)
                         with open(CONFIG_FILE, "w") as f:
                             json.dump(existing, f, indent=2)
-                        global _config_cache, _config_mtime
                         _config_cache = None
                         _config_mtime = None
                         print(f"  {GREEN}✓ '{key}' removed — will be auto-detected.{RESET}")
@@ -443,7 +442,6 @@ def show_config():
                         existing.pop(key, None)
                         with open(CONFIG_FILE, "w") as f:
                             json.dump(existing, f, indent=2)
-                        global _config_cache, _config_mtime
                         _config_cache = None
                         _config_mtime = None
                         print(f"  {GREEN}✓ '{key}' removed — will be auto-detected.{RESET}")
