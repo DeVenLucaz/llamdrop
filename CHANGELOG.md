@@ -1,6 +1,32 @@
 # llamdrop Changelog
 
-## v0.9.1 — current
+## v0.9.2 — current
+
+### HuggingFace search — bug fixes and UX improvements
+
+**Q6, Q8, and Q5_K_S models no longer return "No compatible models found"**
+
+The HuggingFace live search was silently dropping any repo whose only available quantizations were Q6_K, Q8_0, or Q5_K_S. These were missing from the internal preference order list, so the search would find the repo, inspect its files, find no matching quant, and discard the whole result — even though a perfectly good file was right there. Affected every search for higher-quality quantizations. All missing quant levels are now included, ordered highest quality first: Q8_0 → Q6_K → Q5_K_M → Q5_K_S → Q5_K → Q4_K_M and down.
+
+**Models just slightly over the RAM limit no longer vanish silently**
+
+The RAM filter had zero tolerance — if the smallest available variant needed even 0.1 GB more than your free RAM, the model disappeared from results entirely with no explanation. Models within 15% of your available RAM now appear with a "Tight on RAM" warning instead of being hidden. This is consistent with how the main verified catalog already handles marginal models.
+
+**Search screen now has a dedicated back option**
+
+Previously there was no way to exit the HuggingFace search screen without typing something and hitting Enter. The prompt now shows `[B] Back to main menu` before you type anything. Typing `b` or pressing Enter on an empty input returns you to the menu cleanly.
+
+**Search again without going back to the main menu**
+
+After results were shown and you closed the model browser (Q or Esc), llamdrop would silently exit the search flow and drop you back at the main menu. You had to navigate back in and type your query again. Now after closing the browser you get a clear `[S] Search again` / `[B] Back` prompt. Your last search query is shown on screen so you know where you left off. Same prompt appears when a search returns no results.
+
+**Result count shown before browser opens**
+
+The search would say "Searching HuggingFace..." and then jump straight into the curses browser. Now it shows `Found N compatible model(s). Opening browser...` for a moment before opening, so you know whether you got 1 result or 15 before the screen switches.
+
+---
+
+## v0.9.1
 
 ### Bugfix — app crashed on launch after update
 
@@ -238,26 +264,4 @@ Small fixes for battery display, settings loading, chat export, and the update c
 
 ### Big feature push for Android users
 
-- **Finds models you already have** — scans your Downloads, Documents, and other common folders for AI model files you may have downloaded elsewhere. You can use them directly without re-downloading.
-- **Picks the right file size automatically** — at download time, llamdrop checks how much RAM you have right now and picks the best model size that will actually fit.
-- **GPU acceleration** — detects if your Android phone has a compatible GPU and uses it to speed up responses where possible.
-- **RAM warnings during chat** — shows a live colour-coded RAM indicator while you chat. Goes yellow when RAM is getting low, red when it's critical.
-- **Auto-shrinks conversation to prevent crashes** — if RAM gets critically low during a conversation, llamdrop automatically removes old messages to free up space so it doesn't crash.
-- **Animated thinking indicator** — shows a 🦙 Thinking... animation while the model is generating a response so you know it's working.
-- **Delete saved sessions** — you can now delete old saved conversations from the resume screen.
-- 18 models in the catalog.
-
----
-
-## v0.3.0
-
-### The beginning
-
-- One command installs everything — downloads the AI engine, sets up the folders, and gets you ready to chat.
-- Curated list of verified models that are known to work well.
-- Search HuggingFace directly from within llamdrop to find any AI model you want.
-- Downloads resume if interrupted and retry automatically on failure.
-- Detects your device and translates chip codes into readable names (e.g. SM8550 → Snapdragon 8 Gen 2).
-- Arrow-key model browser to pick and download models.
-- Save conversations and resume them later.
-- Available in English, Hindi, Spanish, and Portuguese.
+- **Finds models
