@@ -151,18 +151,26 @@ def search_hf_models(query, device_profile, limit=20):
         best_key     = None
         best_variant = None
 
-        # Prefer Q4_K_M > Q4_K > Q3_K_M > Q2_K > smallest
-        pref_order = ["Q4_K_M", "Q5_K_M", "Q4_K_S", "Q4_K", "Q3_K_M", "Q3_K", "Q2_K"]
+        # Prefer highest quality that fits — Q6/Q8 included so users asking
+        # for Q6 models are not silently dropped (Bug fix: Q6_K was missing)
+        pref_order = [
+            "Q8_0",
+            "Q6_K",
+            "Q5_K_M", "Q5_K_S", "Q5_K",
+            "Q4_K_M", "Q4_K_S", "Q4_K",
+            "Q3_K_M", "Q3_K",
+            "Q2_K",
+        ]
         for pref in pref_order:
             if pref in variants and variants[pref]["min_ram_gb"] <= avail_ram:
                 best_key     = pref
                 best_variant = variants[pref]
                 break
 
-        # If none of preferred found, try any that fits
+        # If none of preferred found, try any that fits (or is within 15% over)
         if best_variant is None:
             for k, v in sorted(variants.items(), key=lambda x: x[1]["min_ram_gb"]):
-                if v["min_ram_gb"] <= avail_ram:
+                if v["min_ram_gb"] <= avail_ram * 1.15:   # allow slight overfit as marginal
                     best_key     = k
                     best_variant = v
                     break
