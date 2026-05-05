@@ -994,4 +994,115 @@ def main():
                     print(c(RED, f"\n  Error: {status}"))
                     input(f"\n  {t('press_enter_back')}")
                     continue
-                print(c(BOLD, "  Launch settings:\n"
+                print(c(BOLD, "  Launch settings:\n"))
+                _internal = os.path.realpath(os.path.expanduser("~/.llamdrop/models"))
+                _mmap_on  = os.path.realpath(model_info["path"]).startswith(_internal)
+                print(get_launch_summary(
+                    device_profile, model_info["filename"],
+                    model_info.get("_best_variant_key", "local"),
+                    v_info, 0, mmap_active=_mmap_on
+                ))
+                # File context — focused mode
+                _ctx_size = getattr(device_profile, "ctx_size", None) or (device_profile.get("safe_context", 2048) if hasattr(device_profile, "get") else 2048)
+                _file_content, _file_path = prompt_for_file(_ctx_size)
+                input(f"\n  Press Enter to start chatting...")
+                _fmt = model_info.get("prompt_format") or _lookup_prompt_format(models_json, model_info["filename"])
+                run_chat(cmd, model_info["filename"], device_profile,
+                         model_path=model_info["path"],
+                         prompt_format=_fmt,
+                         file_context=_file_content, file_context_name=_file_path)
+
+        # 4 — Resume session
+        elif choice == IDX_RESUME:
+            model_name, history = show_sessions()
+            if model_name and history:
+                model_path = None
+                all_candidates = get_downloaded_models() + get_all_gguf_files()
+                seen = set()
+                for m in all_candidates:
+                    p = m["path"]
+                    if p in seen:
+                        continue
+                    seen.add(p)
+                    if (model_name.lower() == m["filename"].lower() or
+                            model_name.lower() in m["filename"].lower() or
+                            m["filename"].lower() in model_name.lower()):
+                        model_path = p
+                        break
+
+                if model_path:
+                    os.system("clear")
+                    print_banner()
+                    print(c(BOLD, f"  Resuming: {model_name}"))
+                    print(c(CYAN, f"  History : {len(history)} messages loaded\n"))
+                    cmd, v_info, status = launch_model(model_path, device_profile)
+                    if cmd:
+                        input("  Press Enter to continue chatting...")
+                        run_chat(cmd, model_name, device_profile,
+                                 initial_history=history,
+                                 model_path=model_path)
+                    else:
+                        print(c(RED, f"\n  Could not launch: {status}"))
+                        input(f"\n  {t('press_enter_back')}")
+                else:
+                    print(c(YELLOW, f"\n  Model file for '{model_name}' not found."))
+                    print("  Go to 'Browse & download' to re-download it.")
+                    input(f"\n  {t('press_enter_back')}")
+
+        # 5 — Ollama Chat (only when Ollama running)
+        elif choice == IDX_OLLAMA and IDX_OLLAMA >= 0:
+            show_ollama_chat(device_profile)
+
+        # Device info
+        elif choice == IDX_DEVICE:
+            show_device_info(device_profile, vulkan_info)
+
+        # Doctor
+        elif choice == IDX_DOCTOR:
+            os.system("clear")
+            from doctor import run_doctor
+            run_doctor()
+            input(f"  {t('press_enter_back')}")
+
+        # Config
+        elif choice == IDX_CONFIG:
+            os.system("clear")
+            print_banner()
+            show_config()
+
+        # Update
+        elif choice == IDX_UPDATE:
+            os.system("clear")
+            print_banner()
+            print(c(BOLD, "  Update llamdrop\n"))
+            from updater import run_self_update
+            run_self_update(VERSION, verbose=True)
+            input(f"\n  {t('press_enter_back')}")
+
+        # Language
+        elif choice == IDX_LANG:
+            os.system("clear")
+            print_banner()
+            choose_language_menu()
+            load_language()
+
+        # Help
+        elif choice == IDX_HELP:
+            show_help()
+
+        # Quit
+        elif choice == IDX_QUIT:
+            os.system("clear")
+            print(c(BLUE + BOLD, "\n  🦙 llamdrop"))
+            print(c(CYAN,   f"  {t('goodbye')}"))
+            print(c(YELLOW, "  Star the repo: github.com/ypatole035-ai/llamdrop"))
+            print("")
+            sys.exit(0)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(c(CYAN, f"\n\n  {t('goodbye')} 🦙\n"))
+        sys.exit(0)
