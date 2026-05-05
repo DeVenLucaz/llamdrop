@@ -1,6 +1,48 @@
 # llamdrop Changelog
 
-## v0.9.2 — current
+## v0.9.4 — current
+
+### Config editor — edit settings from inside llamdrop
+
+The Settings screen was read-only. It showed your current values and said "edit the file manually." Now it's a full interactive editor. Type the number of any setting to edit it, enter a new value, and llamdrop validates the range and type before saving. Type `auto` on any setting to remove your override and let llamdrop auto-detect it again. `[R]` resets everything to defaults. `[B]` goes back. You never need to touch `config.json` by hand.
+
+### Doctor — major diagnostic improvements
+
+The doctor command now catches significantly more problems and explains them clearly.
+
+**Binary check shows real errors.** When `llama-cli` fails to run, doctor now prints the actual stderr output — missing `.so` libraries, wrong architecture, permission errors — instead of just saying "failed to run."
+
+**Self-test added.** Doctor now runs `llama-cli --help` as a functional test. Binary present and executable does not mean it actually works — a corrupted file or wrong architecture will pass the file check but fail the self-test.
+
+**RAM check shows zram and swap.** On Android, zram is active on most devices and meaningfully extends usable RAM. Doctor now shows zram free/total and an effective RAM estimate (RAM + 60% zram weight) so you know your real headroom.
+
+**Network check split into GitHub and HuggingFace.** Previously one check against GitHub. Now checks both separately — GitHub for updates/install, HuggingFace for model downloads and search. If HuggingFace is blocked or down, doctor flags it specifically.
+
+**Termux storage explains what breaks.** Previously just said "run termux-setup-storage." Now explains that model scanning, chat export to Downloads, and external GGUF detection all stop working without storage permission.
+
+**Partial download detection.** Doctor now scans the models directory for `.gguf` files under 50MB — these are orphaned partial downloads from cancelled transfers. Shows the filename, size, and the exact command to delete or re-download each one.
+
+**Config validation.** Doctor now reads `config.json` and validates every key against the schema — wrong types, out-of-range values, unknown keys, and corrupted JSON are all caught and reported with a specific fix for each.
+
+**Summary is complete.** Ollama failures, Termux storage issues, partial model files, and config problems now appear in the final summary. Previously only binary, RAM, storage, directories, catalog, network, and Python were included.
+
+### Bug fixes
+
+**`/ram` command in chat now works correctly.** It was passing the device profile object to `ram_status_line()` instead of a live RAM float, so it always showed 🟢 regardless of actual RAM. Fixed — it now reads live RAM and shows the correct colour.
+
+**Downloader variant picker now includes Q6_K and Q8_0.** The preference order in `smart_pick_variant()` was missing Q6_K, Q8_0, and Q5_K_S — same bug that was fixed in the HF search in v0.9.2, now fixed in the downloader too. Selecting a Q6 model in the browser would silently download Q4 instead.
+
+**Download progress bar now shows ETA.** The progress bar showed speed but not estimated time remaining. Now shows `ETA 1m23s` alongside the download speed.
+
+**Exported chat filenames include the model name.** Exports were saved as `llamdrop-chat-20260506_123456.md`. Now saved as `llamdrop-qwen2.5-3b-20260506_123456.md` so files are identifiable in Downloads.
+
+**HF search query normalized before sending.** Extra whitespace and mixed case in search queries were reducing API results. Queries are now stripped and lowercased before hitting the HuggingFace API.
+
+**Quant preference order synced across all three files.** `browser.py` and `downloader.py` pref orders now match `hf_search.py` — Q8_0, Q6_K, Q5_K_S included in all three so the same model gets the same variant everywhere.
+
+---
+
+## v0.9.2
 
 ### HuggingFace search — bug fixes and UX improvements
 
@@ -264,4 +306,27 @@ Small fixes for battery display, settings loading, chat export, and the update c
 
 ### Big feature push for Android users
 
-- **Finds models
+- **Finds models you already have** — scans your Downloads, Documents, and other common folders for AI model files you may have downloaded elsewhere. You can use them directly without re-downloading.
+- **Picks the right file size automatically** — at download time, llamdrop checks how much RAM you have right now and picks the best model size that will actually fit.
+- **GPU acceleration** — detects if your Android phone has a compatible GPU and uses it to speed up responses where possible.
+- **RAM warnings during chat** — shows a live colour-coded RAM indicator while you chat. Goes yellow when RAM is getting low, red when it's critical.
+- **Auto-shrinks conversation to prevent crashes** — if RAM gets critically low during a conversation, llamdrop automatically removes old messages to free up space so it doesn't crash.
+- **Animated thinking indicator** — shows a 🦙 Thinking... animation while the model is generating a response so you know it's working.
+- **Delete saved sessions** — you can now delete old saved conversations from the resume screen.
+- 18 models in the catalog.
+
+---
+
+## v0.3.0
+
+### The beginning
+
+- One command installs everything — downloads the AI engine, sets up the folders, and gets you ready to chat.
+- Curated list of verified models that are known to work well.
+- Search HuggingFace directly from within llamdrop to find any AI model you want.
+- Downloads resume if interrupted and retry automatically on failure.
+- Detects your device and translates chip codes into readable names (e.g. SM8550 → Snapdragon 8 Gen 2).
+- Arrow-key model browser to pick and download models.
+- Save conversations and resume them later.
+- Available in English, Hindi, Spanish, and Portuguese.
+
