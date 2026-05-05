@@ -472,7 +472,7 @@ def check_config():
     return issues == 0
 
 
-
+def check_benchmarks():
     _section("Benchmarks")
 
     bench_file = os.path.join(LLAMDROP_DIR, "benchmarks.json")
