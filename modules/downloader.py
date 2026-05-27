@@ -42,15 +42,36 @@ except ImportError:
 
 HF_BASE = "https://huggingface.co"
 
-# Common paths to scan for existing GGUF files on Android/Linux
+# Common paths to scan for existing GGUF files on Android/Linux/Termux.
+# Each entry is (path, max_depth) — depth 1 = only that folder (fast),
+# depth 2 = one level of subfolders (catches tool-specific subdirs),
+# depth 3 = two levels deep (for nested structures like ~/ai/models/llama/).
 SCAN_PATHS = [
-    os.path.expanduser("~/.llamdrop/models"),
-    os.path.expanduser("~/storage/shared/Download"),
-    os.path.expanduser("~/storage/shared/Documents"),
-    os.path.expanduser("~/storage/downloads"),
-    os.path.expanduser("~/Downloads"),
-    "/sdcard/Download",
-    "/sdcard/Documents",
+    # ── LLAMdrop managed ──────────────────────────────────────────────────
+    (os.path.expanduser("~/.llamdrop/models"),            1),
+
+    # ── Termux home & common tool dirs ───────────────────────────────────
+    # Vernux, a common Termux LLM tool that stores models in ~/.vernux/models
+    (os.path.expanduser("~/.vernux/models"),              1),
+    # llama.cpp — users often clone to ~/llama.cpp and store models inside
+    (os.path.expanduser("~/llama.cpp/models"),            1),
+    (os.path.expanduser("~/llama.cpp"),                   1),
+    # llama-cpp-python
+    (os.path.expanduser("~/llama-cpp-python/models"),     1),
+    # Generic ~/models or ~/ai/models
+    (os.path.expanduser("~/models"),                      2),
+    (os.path.expanduser("~/ai"),                          2),
+    (os.path.expanduser("~/ai/models"),                   1),
+    # Termux home itself (depth 2 catches one subfolder deep)
+    (os.path.expanduser("~"),                             2),
+
+    # ── Android shared storage ────────────────────────────────────────────
+    (os.path.expanduser("~/storage/shared/Download"),     2),
+    (os.path.expanduser("~/storage/shared/Documents"),    2),
+    (os.path.expanduser("~/storage/downloads"),           2),
+    (os.path.expanduser("~/Downloads"),                   2),
+    ("/sdcard/Download",                                  2),
+    ("/sdcard/Documents",                                 2),
 ]
 
 
@@ -139,32 +160,45 @@ def get_all_gguf_files():
     lock  = threading.Lock()
     done  = threading.Event()
 
+    def _walk(base, max_depth):
+        """Recursively walk base up to max_depth, yielding .gguf file paths."""
+        try:
+            for entry in os.scandir(base):
+                try:
+                    if entry.is_file(follow_symlinks=False):
+                        if entry.name.lower().endswith(".gguf"):
+                            yield entry.path
+                    elif entry.is_dir(follow_symlinks=False) and max_depth > 1:
+                        yield from _walk(entry.path, max_depth - 1)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def _scan():
-        for base in SCAN_PATHS:
-            if not os.path.isdir(base):
+        seen_bases = set()
+        for base, max_depth in SCAN_PATHS:
+            real = os.path.realpath(base)
+            if real in seen_bases or not os.path.isdir(base):
                 continue
-            try:
-                for fname in os.listdir(base):
-                    if not fname.lower().endswith(".gguf"):
+            seen_bases.add(real)
+            for fpath in _walk(base, max_depth):
+                with lock:
+                    if fpath in found:
                         continue
-                    fpath = os.path.join(base, fname)
+                try:
+                    size  = os.path.getsize(fpath)
+                    fname = os.path.basename(fpath)
+                    entry = {
+                        "filename": fname,
+                        "path":     fpath,
+                        "size_gb":  round(size / 1024**3, 2),
+                        "source":   "scan",
+                    }
                     with lock:
-                        if fpath in found:
-                            continue
-                    try:
-                        size  = os.path.getsize(fpath)
-                        entry = {
-                            "filename": fname,
-                            "path":     fpath,
-                            "size_gb":  round(size / 1024**3, 2),
-                            "source":   "scan",
-                        }
-                        with lock:
-                            found[fpath] = entry
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+                        found[fpath] = entry
+                except Exception:
+                    pass
         done.set()
 
     thread = threading.Thread(target=_scan, daemon=True)
