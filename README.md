@@ -6,7 +6,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Linux%20%7C%20RPi%20%7C%20macOS%20%7C%20Windows-green.svg)]()
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)]()
 [![Free Forever](https://img.shields.io/badge/Free-Forever-brightgreen.svg)]()
-[![Version](https://img.shields.io/badge/Version-0.9.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.9.5-blue.svg)]()
 
 ---
 
@@ -61,7 +61,7 @@ Then run:
 llamdrop
 ```
 
-That's it. Two commands. No compilation. No configuration. No account needed.
+Two commands. No compilation. No configuration. No account needed.
 
 ---
 
@@ -71,7 +71,7 @@ That's it. Two commands. No compilation. No configuration. No account needed.
 - 🔍 **Full device profiling** — reads RAM, CPU model, core layout (big.LITTLE aware), CPU flags (AVX2/AVX512/NEON), GPU vendor, storage, Android SoC/API level
 - 🖥️ **7-tier classification** — Micro / Low / Low-Mid / Mid / High / Desktop / Workstation — auto-configures everything per tier
 - 🧠 **Backend auto-selection** — picks the correct backend for every platform×GPU combination: Termux pkg, CUDA, ROCm, Vulkan, Metal/Ollama, IPEX-LLM, or CPU
-- ⚡ **GPU acceleration** — Vulkan for Adreno/Mali/AMD desktop, CUDA for NVIDIA, Metal via Ollama on Apple Silicon — with clear explanations for why GPU is or isn't active
+- ⚡ **GPU acceleration** — Vulkan for Adreno/Mali/AMD desktop, CUDA for NVIDIA, Metal via Ollama on Apple Silicon
 - 🚫 **Android GPU safety** — never forces GPU on Android (Mali Vulkan is slower than CPU; Adreno crashes). CPU-only, no guessing.
 - 👋 **First-launch Device Profile** — shows detected specs card with tier, backend decision, runtime flags, and model recommendations. Runs once.
 
@@ -81,47 +81,34 @@ That's it. Two commands. No compilation. No configuration. No account needed.
   - 🔎 **Live HuggingFace search** — search any GGUF model with live RAM estimates
 - ⬇️ **Resilient downloader** — auto-resumes on connection drops, retries automatically, verifies via SHA-256 checksum
 - 🎯 **Smart quantization** — picks the best Q4/Q2/Q5/IQ variant based on your *live* RAM at download time
-- 🧩 **IQ quant support** — IQ3_M and IQ2_M variants for more models — better quality than Q2_K at same RAM. Vulkan auto-disabled for IQ quants (incompatible).
-- 📊 **Benchmark scores** — tokens/second recorded per model (rolling average, last 5 runs), shown in browser as ⚡ X t/s
-- 🗂️ **Cancelled download cleanup** — partial files deleted immediately on cancel, never show as valid models
+- 🧩 **IQ quant support** — IQ3_M and IQ2_M variants — better quality than Q2_K at same RAM. Vulkan auto-disabled for IQ quants.
+- 📊 **Benchmark scores** — tokens/second recorded per model (rolling average, last 5 runs)
+- 🗂️ **Cancelled download cleanup** — partial files deleted immediately on cancel
 
 ### Chat & Inference
-- 🤖 **Ollama backend** — auto-detected on Linux/desktop and macOS. Routes inference through Ollama HTTP API when running.
-- 💬 **Stable chat** — automatic context trimming prevents out-of-memory crashes. Always preserves your first exchange — only the middle gets trimmed.
+- 🤖 **Ollama backend** — auto-detected on Linux/desktop and macOS, hardware-aware auto-tuning
+- 💬 **Stable chat** — automatic context trimming prevents out-of-memory crashes. First exchange always preserved.
 - 🦙 **Live thinking indicator** — animated spinner with non-blocking stdout while the model generates
 - 🎯 **Prompt format auto-detect** — correct template per model family (ChatML, Llama3, Gemma, Phi3)
 - 📂 **File context** — attach a file to your conversation before chatting
-- 💾 **Session save/load/delete** — resume conversations where you left off, with auto-save every 5 exchanges (10 messages)
+- 💾 **Session save/load/delete** — resume conversations where you left off, auto-save every 5 exchanges
 - 📤 **Chat export** — `/export` saves conversation to Downloads as markdown
-- 🗂️ **Conditional mmap** — 15–30% lower peak RAM on internal storage models; external/sdcard keeps `--no-mmap`
-- 🧹 **Clean output pipeline** — llama.cpp banner, duplicate responses, timing stats, and format tags (ChatML boundaries) are all stripped. What you see is only the model's response.
+- 🧹 **Clean output pipeline** — llama.cpp banner, duplicate responses, timing stats, and format tags all stripped
 
 ### System & UX
-- ⚠️ **Live RAM monitor** — colour-coded bar in UI (green/yellow/red), warns if memory gets critical during chat
-- 🔋 **Battery monitoring** — shows charge %, per-inference battery drop, warns at configurable low threshold. Distinct icons per charge range.
-- 📂 **Phone-wide GGUF scanner** — finds models you already have in Downloads, Documents, etc. Runs in background — UI stays responsive with a live counter.
-- 🆙 **Self-update** — `llamdrop update` pulls latest version from GitHub (resolves correct install root)
-- 🩺 **Doctor** — `llamdrop doctor` checks binary, libraries, RAM, storage, network, Python version, Termux permissions, and Ollama status
-- ⚙️ **Config file** — override threads, context, temperature, system prompt, auto-save, battery warning threshold at `~/.llamdrop/config.json`. Hot-reloads on external edits.
+- ⚠️ **Live RAM monitor** — colour-coded bar in UI (green/yellow/red)
+- 🔋 **Battery monitoring** — shows charge %, per-inference battery drop, warns at configurable low threshold
+- 📂 **Phone-wide GGUF scanner** — finds models already on your device. Runs in background — UI stays responsive.
+- 🆙 **Self-update** — `llamdrop update` pulls latest version from GitHub
+- 🩺 **Doctor** — `llamdrop doctor` checks binary, libraries, RAM, storage, network, Python version, Termux permissions, and Ollama status. `--cleanup` removes orphaned partial downloads.
+- ⚙️ **Config file** — override threads, context, temperature, system prompt, auto-save, battery threshold at `~/.llamdrop/config.json`. Hot-reloads on external edits.
 - 🌐 **Multi-language UI** — English, Hindi, Spanish, Portuguese, Arabic
-- 🖥️ **Curses TUI** — keyboard-navigable menu with live RAM bar, battery line, llama.cpp + GPU status, and update notices
-- ⚡ **Fast startup** — hardware detection runs exactly once at launch. Startup is noticeably faster on low-end devices.
+- 🖥️ **Curses TUI** — keyboard-navigable menu with live RAM bar, battery line, llama.cpp + GPU status
+- ⚡ **Fast startup** — hardware detection runs exactly once at launch
 
 ---
 
 ## Model Catalog
-
-llamdrop uses a **two-layer model system**:
-
-### Layer 1 — Verified Catalog (`models.json`)
-A community-maintained list of models **confirmed to work** on low-RAM devices.
-Every entry has been tested, has known RAM requirements, and is safe to download.
-No login or account required.
-
-### Layer 2 — Live HuggingFace Search
-Search any model on HuggingFace directly from llamdrop.
-The tool estimates RAM requirements from file size and quantization type.
-Clearly marked as **unverified** — for experienced users who want to explore beyond the catalog.
 
 **Current verified catalog (41 models across 6 tiers):**
 
@@ -145,17 +132,13 @@ The browser automatically hides models outside your device's tier — you only s
 llamdrop              # Launch UI
 llamdrop update       # Update to latest version
 llamdrop doctor       # Check install health
+llamdrop doctor --cleanup  # Remove orphaned partial downloads
 llamdrop version      # Show version
 ```
 
-**Chat commands:**
-```
-/help     — show commands
-/export   — save conversation as markdown
-/clear    — clear history
-/ram      — show current RAM usage
-/quit     — exit chat
-```
+**Chat commands:** `/help` `/export` `/clear` `/ram` `/quit`
+
+For full usage guides, see the [Wiki](https://github.com/DeVenLucaz/llamdrop/wiki).
 
 ---
 
@@ -197,13 +180,16 @@ llamdrop/
 │   ├── i18n.py          # Multi-language UI strings (EN/HI/ES/PT/AR)
 │   ├── updater.py       # Self-update + background catalog updater
 │   ├── benchmarks.py    # Tokens/sec benchmark storage (rolling average, 5 runs)
-│   ├── doctor.py        # Install health checker + Ollama check
+│   ├── doctor.py        # Install health checker + partial download cleanup
 │   ├── config.py        # User config file with mtime-aware hot-reload
 │   ├── battery.py       # Battery monitoring during inference
 │   ├── filecontext.py   # File attachment for chat context
 │   └── backends/
 │       ├── __init__.py  # Backends package
 │       └── ollama.py    # Ollama HTTP backend (auto-detected)
+├── tests/
+│   ├── test_specs.py    # Hardware tiering + device profiling tests
+│   └── test_prompts.py  # Prompt builder tests (ChatML, Llama3, etc.)
 └── docs/
     ├── CONTRIBUTING.md  # How to contribute
     └── DEVICES.md       # Community device compatibility list
@@ -213,45 +199,13 @@ llamdrop/
 
 ## Roadmap
 
-### v0.7 — Done
-- [x] Chip-aware threads — 30+ chips mapped to actual big core count
-- [x] Fixed context thresholds — 2048–8192 tokens based on device class
-- [x] Device class detection — ultra_low / low / mid / high / desktop
-- [x] First-launch welcome screen — detected specs + model recommendations
-- [x] Ollama backend — auto-detected on Linux/desktop, HTTP API routing
-- [x] IQ quant support — IQ3_M/IQ2_M, Vulkan auto-disabled
-- [x] Conditional mmap — 15–30% RAM saving on internal storage models
-- [x] Clean inference extraction — `_run_inference()` / `_dispatch_inference()`
-- [x] 25 models in catalog
-
-### v0.8.5 — Done
-- [x] Full `DeviceProfile` dataclass — single source of truth for all device decisions
-- [x] 7-tier classification (Micro / Low / Low-Mid / Mid / High / Desktop / Workstation)
-- [x] 80+ SoC chip translation table
-- [x] GPU-aware install — CUDA / ROCm / Vulkan / CPU binary auto-selected at install time
-- [x] Native Windows PowerShell installer (`install.ps1`)
-- [x] macOS Homebrew + Ollama install path
-- [x] IQ quant Vulkan guard — IQ2/IQ3/IQ4 force `gpu-layers=0`
-- [x] SHA-256 binary verification in installer
-- [x] Config hot-reload on external edits (mtime tracking)
-- [x] Battery icon levels (🪫 / 🔴 / 🟡 / 🔋)
-- [x] Arabic language added
-- [x] Icon-based menu index — adding/removing items no longer shifts handlers
-- [x] RAM estimate overhead raised to 1.4× for KV cache accuracy
-- [x] Multiple critical bug fixes (browser content swap, blocking stdout, config cache, auto-save counter, menu index offsets, Vulkan false positives)
-
 ### v0.9.5 — Current
-- [x] Device-aware model browser — shows only models that fit your hardware tier and RAM
-- [x] Catalog expanded from 25 to 41 models across 6 tiers (micro through desktop/workstation)
-- [x] Chat output pipeline fully cleaned — no llama.cpp banner bleed, no duplicate responses, no leaked timing stats or format tags
-- [x] Cancelled downloads cleaned up immediately — partial files never appear as valid models
-- [x] Background GGUF scanner — My Models screen no longer freezes, live counter while scanning
-- [x] Smarter context trimming — first exchange always preserved, middle trimmed instead of tail
-- [x] RAM reads consolidated to one shared source across all modules
-- [x] Hardware detection runs once at startup instead of three separate times
-- [x] Incremental prompt buffer — full prompt no longer rebuilt from scratch every turn
-- [x] Noise filter moved to stderr only — model stdout no longer silently corrupted
-- [x] Auto-save constant named and documented (`_AUTOSAVE_EVERY_TURNS = 10`)
+- [x] RAM monitoring unified — single source of truth across all modules
+- [x] Inference blocking fixed — non-blocking stdout, smooth "Thinking..." animation
+- [x] Ollama first-class — hardware-aware auto-tuning, same as llama.cpp path
+- [x] Formal test suite added — `tests/` with 6 passing tests
+- [x] `doctor --cleanup` — detects and removes orphaned partial downloads
+- [x] GitHub URL migration — all references updated to DeVenLucaz/llamdrop
 
 ### v1.0 — Planned
 - [ ] Web-based model catalog (GitHub Pages)
@@ -259,6 +213,7 @@ llamdrop/
 - [ ] `/doc` command — document chat with chunking (no vector DB needed)
 - [ ] llamdrop server mode — run on phone, access from browser on WiFi
 - [ ] Streaming tokens via Ollama backend
+- [ ] Multiple file context — attach more than one file to a conversation
 
 ---
 
@@ -280,7 +235,6 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for full details.
 
 **GNU General Public License v3.0** — see [LICENSE](LICENSE)
 
-In plain language:
 - ✅ Free to use forever
 - ✅ Free to modify and share
 - ❌ Cannot be sold
