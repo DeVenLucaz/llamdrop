@@ -240,7 +240,7 @@ llamdrop/
 - [x] RAM estimate overhead raised to 1.4× for KV cache accuracy
 - [x] Multiple critical bug fixes (browser content swap, blocking stdout, config cache, auto-save counter, menu index offsets, Vulkan false positives)
 
-### v0.9.0 — Current
+### v0.9.5 — Current
 - [x] Device-aware model browser — shows only models that fit your hardware tier and RAM
 - [x] Catalog expanded from 25 to 41 models across 6 tiers (micro through desktop/workstation)
 - [x] Chat output pipeline fully cleaned — no llama.cpp banner bleed, no duplicate responses, no leaked timing stats or format tags

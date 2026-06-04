@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # llamdrop installer
-# https://github.com/ypatole035-ai/llamdrop
+# https://github.com/DeVenLucaz/llamdrop
 # License: GPL v3 — Free forever. Cannot be sold.
 
 LLAMDROP_DIR="$HOME/.llamdrop"
 BIN_DIR="$LLAMDROP_DIR/bin"
-LLAMDROP_RAW="https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main"
+LLAMDROP_RAW="https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -26,7 +26,7 @@ banner() {
   echo "  ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝     "
   echo -e "${NC}"
   echo -e "  ${CYAN}Run AI on any device. No PC. No subscription. No struggle.${NC}"
-  echo -e "  ${YELLOW}Free forever · GPL v3 · github.com/ypatole035-ai/llamdrop${NC}"
+  echo -e "  ${YELLOW}Free forever · GPL v3 · github.com/DeVenLucaz/llamdrop${NC}"
   echo ""
   echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
@@ -276,7 +276,7 @@ get_llama_binary() {
     echo ""
     echo "  Option A — PowerShell installer (recommended):"
     echo "    1. Open PowerShell as Administrator"
-    echo "    2. Run: irm https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main/install.ps1 | iex"
+    echo "    2. Run: irm https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.ps1 | iex"
     echo ""
     echo "  Option B — llamafile (single portable binary, works in Git Bash):"
     echo "    1. Download: https://github.com/Mozilla-Ocho/llamafile/releases"

@@ -1,6 +1,26 @@
 # llamdrop Changelog
 
-## v0.9.4 — current
+## v0.9.5 — current
+
+### Core Audit & Logic Unification
+Unified all RAM monitoring logic into `modules/specs.py`. This eliminates duplication across `chat.py`, `downloader.py`, and `ram_monitor.py`, ensuring consistent memory reporting throughout the application.
+
+### Fixed Inference UI Blocking
+Refactored the model output collection in `modules/chat.py` to be non-blocking. The "Thinking..." animation now runs smoothly even on single-core devices by ensuring the Python GIL is released regularly during inference.
+
+### Ollama First-Class Backend
+Ollama integration is now hardware-aware. The Ollama backend now respects the `DeviceProfile` and auto-tunes threads, context size, and batch size to match the native `llama.cpp` experience.
+
+### Formal Testing Suite
+Added the first formal unit tests for the project under `tests/`. Coverage includes hardware tier classification, optimal thread selection, and prompt building for various model formats (ChatML, Llama 3, Gemma, Phi).
+
+### Diagnostic Partial Download Cleanup
+`llamdrop doctor` now includes a `--cleanup` flag (and a recommendation in the health report) to scan and remove incomplete `.gguf` downloads. This helps users recover storage from failed or cancelled downloads easily.
+
+### GitHub Migration
+Project-wide update of all URLs from the old `ypatole035-ai/llamdrop` to the new official home at `DeVenLucaz/llamdrop`.
+
+## v0.9.4
 
 ### Config editor — edit settings from inside llamdrop
 

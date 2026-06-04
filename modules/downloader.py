@@ -17,26 +17,18 @@ import threading
 import urllib.request
 import urllib.error
 
-# Shared RAM utility — single source of truth (defined in specs.py, Phase 1).
-# Replaces the old local _get_live_ram_gb() that was a duplicate.
+# Shared RAM utility — single source of truth (defined in specs.py).
 try:
     from specs import read_available_ram_gb as _get_live_ram_gb
 except ImportError:
     def _get_live_ram_gb():
+        # Minimal fallback
         try:
-            mem = {}
             with open("/proc/meminfo") as f:
                 for line in f:
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        mem[parts[0].rstrip(":")] = int(parts[1])
-            avail_kb     = mem.get("MemAvailable", 0)
-            swap_free_kb = mem.get("SwapFree", 0)
-            avail_gb     = round(avail_kb / 1024 / 1024, 2)
-            swap_gb      = round(min(swap_free_kb, 1536 * 1024) / 1024 / 1024, 1)
-            return round(avail_gb + swap_gb * 0.6, 2)
-        except Exception:
-            pass
+                    if line.startswith("MemAvailable"):
+                        return round(int(line.split()[1]) / 1024 / 1024, 2)
+        except Exception: pass
         return 0.0
 
 

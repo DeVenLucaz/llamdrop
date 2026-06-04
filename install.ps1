@@ -1,9 +1,9 @@
 # llamdrop Windows Installer
-# https://github.com/ypatole035-ai/llamdrop
+# https://github.com/DeVenLucaz/llamdrop
 # License: GPL v3 - Free forever. Cannot be sold.
 #
 # Run in PowerShell (Windows 10/11):
-#   irm https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.ps1 | iex
 #
 # Or locally:
 #   Set-ExecutionPolicy -Scope Process Bypass
@@ -26,7 +26,7 @@ function Show-Banner {
     Write-Host ""
     Write-Host "  llamdrop - Run AI on any device." -ForegroundColor Blue
     Write-Host "  Windows installer (PowerShell)`n" -ForegroundColor Cyan
-    Write-Host "  Free forever . GPL v3 . github.com/ypatole035-ai/llamdrop`n" -ForegroundColor Yellow
+    Write-Host "  Free forever . GPL v3 . github.com/DeVenLucaz/llamdrop`n" -ForegroundColor Yellow
     Write-Host "  " + ("-" * 54)
     Write-Host ""
 }
@@ -191,7 +191,7 @@ function Install-LlamaCpp {
 function Install-LlamdropScripts {
     Step "Installing llamdrop scripts"
 
-    $RAW = "https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main"
+    $RAW = "https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main"
     $files = @(
         "llamdrop.py",
         "models.json",

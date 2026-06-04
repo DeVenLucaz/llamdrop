@@ -230,6 +230,27 @@ def _detect_ram() -> dict:
 # Single source of truth for live available RAM.
 # chat.py and downloader.py both import this instead of reimplementing it.
 
+def read_ram_full() -> dict:
+    """
+    Returns dict with comprehensive RAM stats:
+    total_gb, avail_gb, used_gb, used_pct, swap_free_gb, effective_gb.
+    """
+    ram = _detect_ram()
+    total = ram.get("total_gb", 0.0)
+    avail = ram.get("avail_gb", 0.0)
+    used  = round(total - avail, 1)
+    pct   = int((used / total) * 100) if total > 0 else 0
+    
+    return {
+        "total_gb":     total,
+        "avail_gb":     avail,
+        "used_gb":      used,
+        "used_pct":     pct,
+        "swap_free_gb": ram.get("swap_free_gb", 0.0),
+        "effective_gb": ram.get("effective_gb", 0.0),
+    }
+
+
 def read_available_ram_gb() -> float:
     """
     Return current available RAM in GB.

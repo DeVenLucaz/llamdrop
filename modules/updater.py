@@ -15,7 +15,7 @@ import time
 import re
 
 
-GITHUB_RAW      = "https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main"
+GITHUB_RAW      = "https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main"
 MODELS_JSON_URL = f"{GITHUB_RAW}/models.json"
 VERSION_URL     = f"{GITHUB_RAW}/llamdrop.py"
 CHANGELOG_URL   = f"{GITHUB_RAW}/CHANGELOG.md"

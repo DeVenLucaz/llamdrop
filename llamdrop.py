@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 llamdrop - Run AI on any device. No PC. No subscription. No struggle.
-https://github.com/ypatole035-ai/llamdrop
+https://github.com/DeVenLucaz/llamdrop
 License: GPL v3 — Free forever. Cannot be sold.
 """
 
@@ -11,7 +11,7 @@ import curses
 import json
 import time
 
-VERSION = "0.9.4"
+VERSION = "0.9.5"
 
 # Ensure modules directory is on path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -97,7 +97,7 @@ def print_banner():
     print("")
     print(c(BLUE + BOLD,   "  ██ llamdrop"))
     print(c(CYAN,          f"  {t('tagline')}"))
-    print(c(YELLOW,        f"  v{VERSION} · {t('free_forever')} · github.com/ypatole035-ai/llamdrop"))
+    print(c(YELLOW,        f"  v{VERSION} · {t('free_forever')} · github.com/DeVenLucaz/llamdrop"))
     print("")
     print("  " + "━" * 54)
     print("")
@@ -718,18 +718,22 @@ def main():
             print(f"llamdrop v{VERSION}")
             sys.exit(0)
         elif cmd in ("doctor", "check"):
-            from doctor import run_doctor
-            run_doctor()
+            from doctor import run_doctor, cleanup_partial_downloads
+            if "--cleanup" in sys.argv:
+                cleanup_partial_downloads(interactive=True)
+            else:
+                run_doctor()
             input("  Press Enter to exit...")
             sys.exit(0)
         elif cmd in ("--help", "-h", "help"):
             print(f"llamdrop v{VERSION}")
-            print("Usage: llamdrop [command]")
+            print("Usage: llamdrop [command] [options]")
             print("")
             print("Commands:")
-            print("  update    — update llamdrop to the latest version")
-            print("  doctor    — check your install for issues")
-            print("  version   — show current version")
+            print("  update            — update llamdrop to the latest version")
+            print("  doctor            — check your install for issues")
+            print("  doctor --cleanup  — scan and remove partial model downloads")
+            print("  version           — show current version")
             print("")
             print("Run without arguments to open the interactive menu.")
             sys.exit(0)
@@ -1095,7 +1099,7 @@ def main():
             os.system("clear")
             print(c(BLUE + BOLD, "\n  🦙 llamdrop"))
             print(c(CYAN,   f"  {t('goodbye')}"))
-            print(c(YELLOW, "  Star the repo: github.com/ypatole035-ai/llamdrop"))
+            print(c(YELLOW, "  Star the repo: github.com/DeVenLucaz/llamdrop"))
             print("")
             sys.exit(0)
 

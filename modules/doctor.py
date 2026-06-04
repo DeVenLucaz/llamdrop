@@ -27,7 +27,7 @@ BIN_DIR      = os.path.join(LLAMDROP_DIR, "bin")
 MODELS_DIR   = os.path.join(LLAMDROP_DIR, "models")
 SESSIONS_DIR = os.path.join(LLAMDROP_DIR, "sessions")
 MODELS_JSON  = os.path.join(LLAMDROP_DIR, "models.json")
-GITHUB_CHECK = "https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main/llamdrop.py"
+GITHUB_CHECK = "https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/llamdrop.py"
 
 GREEN  = "\033[32m"
 YELLOW = "\033[33m"
@@ -82,7 +82,7 @@ def check_binary():
             _ok("llama-cli found (system)", sys_cli)
         else:
             _fail("llama-cli not found",
-                  fix="Re-run the installer: curl -sL https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main/install.sh | bash")
+                  fix="Re-run the installer: curl -sL https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.sh | bash")
             return False
 
     # Check .so libraries
@@ -277,7 +277,7 @@ def check_models_json():
 
     if not os.path.exists(MODELS_JSON):
         _fail("models.json not found",
-              fix="Run: curl -sL https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main/models.json -o ~/.llamdrop/models.json")
+              fix="Run: curl -sL https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/models.json -o ~/.llamdrop/models.json")
         return False
 
     try:
@@ -293,7 +293,7 @@ def check_models_json():
 
     except json.JSONDecodeError as e:
         _fail("models.json is corrupted", str(e),
-              fix="Re-download: curl -sL https://raw.githubusercontent.com/ypatole035-ai/llamdrop/main/models.json -o ~/.llamdrop/models.json")
+              fix="Re-download: curl -sL https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/models.json -o ~/.llamdrop/models.json")
         return False
 
 
@@ -536,6 +536,42 @@ def check_ollama():
     return True
 
 
+def cleanup_partial_downloads(interactive=True):
+    """Scan and delete partial GGUF downloads under 50MB."""
+    if not os.path.isdir(MODELS_DIR):
+        return
+
+    all_gguf = [f for f in os.listdir(MODELS_DIR) if f.endswith(".gguf")]
+    MIN_VALID = 50 * 1024 * 1024
+    partials = [f for f in all_gguf if os.path.getsize(os.path.join(MODELS_DIR, f)) < MIN_VALID]
+
+    if not partials:
+        if not interactive: return
+        print(f"\n  {GREEN}✓ No partial downloads found.{RESET}")
+        return
+
+    print(f"\n  {YELLOW}Found {len(partials)} partial download(s):{RESET}")
+    for p in partials:
+        size_mb = round(os.path.getsize(os.path.join(MODELS_DIR, p)) / 1024 / 1024, 1)
+        print(f"    • {p} ({size_mb} MB)")
+
+    if interactive:
+        try:
+            choice = input(f"\n  Delete these {len(partials)} partial files? (y/N): ").strip().lower()
+            if choice == "y":
+                for p in partials:
+                    os.remove(os.path.join(MODELS_DIR, p))
+                print(f"  {GREEN}✓ Cleaned up {len(partials)} files.{RESET}")
+            else:
+                print("  Cleanup skipped.")
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Cleanup cancelled.")
+    else:
+        # Non-interactive mode (e.g. called via flag)
+        for p in partials:
+            os.remove(os.path.join(MODELS_DIR, p))
+
+
 def run_doctor():
     os.system("clear")
     print(f"\n  {BOLD}🦙 llamdrop doctor{RESET}")
@@ -589,7 +625,7 @@ def run_doctor():
     if not results.get("termux"):
         issues.append("Termux storage permission missing — run: termux-setup-storage")
     if not results.get("models"):
-        issues.append("Partial/incomplete model files found — re-download or delete them")
+        issues.append("Partial/incomplete model files found — run 'llamdrop doctor --cleanup' to fix")
     if not results.get("config"):
         issues.append("config.json has invalid values — edit via Settings or delete the file")
 

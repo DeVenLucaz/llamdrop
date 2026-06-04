@@ -44,7 +44,6 @@ except ImportError:
         def format_drop(self): return ""
 
 # Shared RAM utility — single source of truth (defined in specs.py).
-# Replaces the old local get_available_ram_gb() that was a duplicate.
 try:
     from specs import read_available_ram_gb as get_available_ram_gb
 except ImportError:
@@ -306,7 +305,7 @@ def _dispatch_inference(cmd, prompt, max_tokens, temperature, device_profile,
             from backends.ollama import run_inference as ollama_infer
             from backends.ollama import parse_tps_from_response
             raw_out, clean_response = ollama_infer(
-                ollama_model, prompt, max_tokens, temperature
+                ollama_model, prompt, max_tokens, temperature, device_profile
             )
             return raw_out, clean_response, "ollama"
         except ImportError:
@@ -871,9 +870,16 @@ def _run_inference(cmd, prompt, max_tokens=300, temperature=0.7):
 
         t_out = threading.Thread(target=_collect_stdout, daemon=True)
         t_out.start()
-        t_out.join()          # wait for stdout to close (process done)
+        
+        # Cooperative join loop: instead of a single blocking t_out.join(),
+        # we join with a small timeout in a loop. This ensures the main 
+        # thread remains cooperative and the GIL is released regularly, 
+        # preventing the ThinkingIndicator spinner from stuttering.
+        while t_out.is_alive():
+            t_out.join(0.1)
+
         proc.wait()
-        t.join(timeout=2)
+        t.join(timeout=1)
 
         raw_output = "".join(stdout_lines)
 

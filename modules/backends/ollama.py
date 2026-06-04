@@ -109,7 +109,8 @@ def pull_model(model_name, on_progress=None):
 
 # ── Inference ─────────────────────────────────────────────────────────────────
 
-def run_inference(model_name, prompt, max_tokens=300, temperature=0.7):
+def run_inference(model_name, prompt, max_tokens=300, temperature=0.7, 
+                  device_profile=None):
     """
     Run a single inference via the Ollama HTTP API.
 
@@ -117,21 +118,38 @@ def run_inference(model_name, prompt, max_tokens=300, temperature=0.7):
       - Takes prompt string
       - Returns (raw_output, clean_response) or (None, None) on failure
 
-    raw_output here is the full JSON response body string (for compatibility
-    with anything that wants to parse timing/token stats).
-    clean_response is the model's text response, ready for display and history.
-
-    Non-streaming: waits for the full response. Streaming support can be
-    added later by switching to stream=True and reading chunks.
+    If device_profile is provided, we use its threads, ctx_size, and batch_size
+    to auto-tune the Ollama session.
     """
+    options = {
+        "num_predict": max_tokens,
+        "temperature": round(temperature, 2),
+    }
+
+    # Auto-tune Ollama using llamdrop device profile
+    if device_profile:
+        # Use helper getters from specs.py if available, else try direct access
+        try:
+            from specs import dp_threads, dp_ctx, dp_batch
+            options["num_thread"] = dp_threads(device_profile)
+            options["num_ctx"]    = dp_ctx(device_profile)
+            options["num_batch"]  = dp_batch(device_profile)
+        except ImportError:
+            # Fallback if specs.py helpers aren't easily reachable
+            if hasattr(device_profile, "threads"):
+                options["num_thread"] = device_profile.threads
+                options["num_ctx"]    = device_profile.ctx_size
+                options["num_batch"]  = device_profile.batch_size
+            elif isinstance(device_profile, dict):
+                options["num_thread"] = device_profile.get("optimal_threads", 4)
+                options["num_ctx"]    = device_profile.get("safe_context", 2048)
+                options["num_batch"]  = device_profile.get("safe_batch", 256)
+
     payload = json.dumps({
         "model":   model_name,
         "prompt":  prompt,
         "stream":  False,
-        "options": {
-            "num_predict": max_tokens,
-            "temperature": round(temperature, 2),
-        },
+        "options": options,
     }).encode("utf-8")
 
     try:

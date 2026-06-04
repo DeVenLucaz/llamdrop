@@ -1,6 +1,6 @@
 {
-  "version": "0.9.1",
-  "last_updated": "2026-04-27",
+  "version": "0.9.5",
+  "last_updated": "2026-06-04",
   "tier_order": ["micro", "low", "low_mid", "mid", "high", "desktop", "workstation"],
   "tiers": {
     "1": {

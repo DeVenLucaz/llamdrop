@@ -9,53 +9,23 @@ import threading
 import time
 import os
 
+# Centralized RAM utilities from specs.py
+try:
+    from specs import read_available_ram_gb, read_ram_full
+except ImportError:
+    # Minimal fallback if specs.py is missing or broken
+    def read_available_ram_gb():
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable"):
+                        return round(int(line.split()[1]) / 1024 / 1024, 2)
+        except Exception: pass
+        return 0.0
 
-# ── RAM reading ───────────────────────────────────────────────────────────────
-
-def read_available_ram_gb():
-    """Read current available RAM in GB from /proc/meminfo."""
-    try:
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemAvailable"):
-                    kb = int(line.split()[1])
-                    return round(kb / 1024 / 1024, 2)
-    except Exception:
-        pass
-    return 0.0
-
-
-def read_ram_full():
-    """Returns dict: total_gb, available_gb, used_gb, used_pct, swap_free_gb."""
-    try:
-        mem = {}
-        with open("/proc/meminfo") as f:
-            for line in f:
-                parts = line.split()
-                if len(parts) >= 2:
-                    mem[parts[0].rstrip(":")] = int(parts[1])
-
-        total_kb = mem.get("MemTotal", 0)
-        avail_kb = mem.get("MemAvailable", 0)
-        used_kb  = total_kb - avail_kb
-
-        total_gb = round(total_kb / 1024 / 1024, 1)
-        avail_gb = round(avail_kb / 1024 / 1024, 2)
-        used_gb  = round(used_kb  / 1024 / 1024, 1)
-        used_pct = int(used_kb / total_kb * 100) if total_kb > 0 else 0
-
-        swap_free_kb = mem.get("SwapFree", 0)
-        swap_free_gb = round(min(swap_free_kb, 1536 * 1024) / 1024 / 1024, 1)
-
-        return {
-            "total_gb":   total_gb,
-            "avail_gb":   avail_gb,
-            "used_gb":    used_gb,
-            "used_pct":   used_pct,
-            "swap_free_gb": swap_free_gb,
-        }
-    except Exception:
-        return {"total_gb": 0, "avail_gb": 0, "used_gb": 0, "used_pct": 0, "swap_free_gb": 0}
+    def read_ram_full():
+        avail = read_available_ram_gb()
+        return {"total_gb": 0.0, "avail_gb": avail, "used_gb": 0.0, "used_pct": 0, "swap_free_gb": 0.0}
 
 
 # ── RAM status rendering ──────────────────────────────────────────────────────
@@ -66,7 +36,7 @@ def ram_bar(avail_gb, total_gb, width=20):
     e.g.  [████████░░░░░░░░░░░░] 3.2GB free
     """
     if total_gb <= 0:
-        return "[??????????] ?.?GB free"
+        return f"RAM: {avail_gb}GB free"
 
     used_pct = max(0, min(100, int((total_gb - avail_gb) / total_gb * 100)))
     filled   = int(width * used_pct / 100)
