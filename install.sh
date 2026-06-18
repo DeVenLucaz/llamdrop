@@ -44,15 +44,8 @@ detect_platform() {
 
   if [ -d "/data/data/com.termux" ]; then
     PLATFORM="termux"
-
-  elif [ "$OS" = "Darwin" ]; then
-    PLATFORM="macos"
-
   elif [ "$OS" = "Linux" ]; then
-    # Detect WSL2 before distro checks
-    if grep -qi "microsoft\|WSL" /proc/version 2>/dev/null; then
-      PLATFORM="wsl"
-    elif [ -f "/etc/arch-release" ]; then
+    if [ -f "/etc/arch-release" ]; then
       PLATFORM="arch"
     elif [ -f "/etc/fedora-release" ]; then
       PLATFORM="fedora"
@@ -61,13 +54,9 @@ detect_platform() {
     else
       PLATFORM="linux"
     fi
-
   else
-    # Git Bash / MSYS / Cygwin on Windows
-    case "${OSTYPE:-}" in
-      msys*|cygwin*|win32*) PLATFORM="windows_bash" ;;
-      *) PLATFORM="linux" ;;
-    esac
+    error "Unsupported OS: $OS. llamdrop is focused purely on Linux, Termux, and Raspberry Pi."
+    exit 1
   fi
 
   info "Platform : ${BOLD}$PLATFORM${NC}"
@@ -126,27 +115,8 @@ detect_hardware() {
     warn "GPU        : $GPU_VENDOR — $GPU_NOTE"
     info "GPU layers : 0 (CPU only — correct for all Android devices)"
 
-  elif [ "$(uname -s)" = "Darwin" ]; then
-    # macOS
-    if [ "$ARCH" = "arm64" ]; then
-      GPU_VENDOR="apple_metal"
-      GPU_USABLE=true
-      GPU_LAYERS=999
-      info "GPU        : ${BOLD}Apple Silicon (Metal)${NC}"
-      info "GPU layers : ${BOLD}999 (unified memory — offload all)${NC}"
-    else
-      GPU_VENDOR="intel_mac"
-      GPU_USABLE=false
-      GPU_LAYERS=0
-      info "GPU        : Intel Mac — Metal not available for llama.cpp"
-    fi
-
   else
-    # Linux / WSL2
-    # WSL2 note: AMD ROCm does NOT work in WSL2 (only Vulkan).
-    # NVIDIA CUDA works in WSL2 with correct Windows drivers + WSL2 CUDA toolkit.
-    IS_WSL=false
-    grep -qi "microsoft\|WSL" /proc/version 2>/dev/null && IS_WSL=true
+    # Linux
     if command -v nvidia-smi > /dev/null 2>&1; then
       NVIDIA_OUT=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
       if [ -n "$NVIDIA_OUT" ]; then
@@ -158,8 +128,7 @@ detect_hardware() {
       fi
     fi
 
-    if [ "$GPU_VENDOR" = "none" ] && [ "$IS_WSL" = "false" ] && command -v rocm-smi > /dev/null 2>&1; then
-      # ROCm does NOT work in WSL2 — skip detection there
+    if [ "$GPU_VENDOR" = "none" ] && command -v rocm-smi > /dev/null 2>&1; then
       if rocm-smi > /dev/null 2>&1; then
         GPU_VENDOR="amd_rocm"
         GPU_USABLE=true
@@ -167,9 +136,6 @@ detect_hardware() {
         info "GPU        : ${BOLD}AMD GPU (ROCm detected)${NC}"
         info "GPU layers : ${BOLD}999 (ROCm — offload all)${NC}"
       fi
-    elif [ "$GPU_VENDOR" = "none" ] && [ "$IS_WSL" = "true" ]; then
-      # WSL2: ROCm unavailable; AMD will be caught by lspci and use Vulkan
-      true
     fi
 
     if [ "$GPU_VENDOR" = "none" ] && command -v lspci > /dev/null 2>&1; then
@@ -232,25 +198,10 @@ install_packages() {
     for p in git cmake python clang libandroid-execinfo curl; do
       pkg install -y "$p" 2>/dev/null || true
     done
-  elif [ "$PLATFORM" = "macos" ]; then
-    info "Installing Homebrew packages..."
-    if ! command -v brew > /dev/null 2>&1; then
-      warn "Homebrew not found. Install from https://brew.sh then re-run."
-    else
-      brew install python3 curl 2>/dev/null || true
-    fi
   elif [ "$PLATFORM" = "arch" ]; then
     sudo pacman -Sy --noconfirm git cmake python curl gcc 2>/dev/null || true
   elif [ "$PLATFORM" = "fedora" ]; then
     sudo dnf install -y git cmake python3 python3-pip curl gcc gcc-c++ 2>/dev/null || true
-  elif [ "$PLATFORM" = "windows_bash" ]; then
-    info "Git Bash / MSYS detected — using llamafile (no compilation needed)"
-    # Python may not be available; skip pip step
-    command -v python3 > /dev/null 2>&1 || warn "Python3 not found — install Python for Windows"
-  elif [ "$PLATFORM" = "wsl" ]; then
-    # WSL2 — treat as Debian/Ubuntu for package installs
-    sudo apt update -q 2>/dev/null || true
-    sudo apt install -y git cmake python3 python3-pip curl gcc g++ build-essential 2>/dev/null || true
   else
     sudo apt update -q 2>/dev/null || true
     sudo apt install -y git cmake python3 python3-pip curl gcc g++ build-essential 2>/dev/null || true
@@ -267,72 +218,15 @@ get_llama_binary() {
 
   mkdir -p "$BIN_DIR"
 
-  # ── Windows Git Bash / MSYS — llamafile is the only viable path ──────────
-  if [ "$PLATFORM" = "windows_bash" ]; then
-    step "Windows Git Bash / MSYS detected"
-    warn "llamdrop's install.sh cannot install llama.cpp binaries in Git Bash."
-    echo ""
-    info "Best option for Windows: run install.ps1 in PowerShell"
-    echo ""
-    echo "  Option A — PowerShell installer (recommended):"
-    echo "    1. Open PowerShell as Administrator"
-    echo "    2. Run: irm https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.ps1 | iex"
-    echo ""
-    echo "  Option B — llamafile (single portable binary, works in Git Bash):"
-    echo "    1. Download: https://github.com/Mozilla-Ocho/llamafile/releases"
-    echo "    2. Rename to model.llamafile.exe and run it directly."
-    echo ""
-    echo "  Option C — WSL2 (best GPU support on Windows)"
-    echo "    Install WSL2, then run this installer inside WSL2."
-    echo ""
-    info "llamdrop Python scripts still work once a binary is placed in $BIN_DIR"
-    exit 0
-  fi
-
-  # ── macOS — Ollama is the recommended backend ─────────────────────────────
-  if [ "$PLATFORM" = "macos" ]; then
-    step "macOS detected"
-    if [ "$ARCH" = "arm64" ]; then
-      info "Apple Silicon Mac — Ollama with Metal acceleration recommended"
-    else
-      info "Intel Mac — CPU-only inference"
-    fi
-    if command -v ollama > /dev/null 2>&1; then
-      success "Ollama is already installed."
-    else
-      info "Installing Ollama..."
-      if command -v brew > /dev/null 2>&1; then
-        brew install ollama 2>/dev/null && success "Ollama installed via Homebrew" || true
-      fi
-      if ! command -v ollama > /dev/null 2>&1; then
-        warn "Could not install Ollama automatically."
-        echo ""
-        echo "  Install manually: https://ollama.com/download"
-        echo "  Then run: ollama pull qwen3:4b"
-        echo ""
-      fi
-    fi
-    if command -v ollama > /dev/null 2>&1; then
-      # Create a stub llama-cli shim so llamdrop launcher still works
-      cat > "$BIN_DIR/llama-cli" << 'SHIM'
-#!/usr/bin/env bash
-# llamdrop shim — routes calls through Ollama on macOS
-# Direct llama-cli calls are intercepted; Ollama handles model inference.
-echo "Note: on macOS, use llamdrop's Ollama chat menu for inference."
-SHIM
-      chmod +x "$BIN_DIR/llama-cli"
-      success "macOS setup complete. Use the Ollama menu in llamdrop."
-    fi
-    return 0
-  fi
+  # Windows and macOS branches have been removed in v1.0.0 (LTS Focus)
 
   # Method 1: Termux package manager (fastest, most reliable on Android)
   if [ "$PLATFORM" = "termux" ]; then
     info "Installing via Termux package manager..."
-    pkg install -y llama-cpp 2>/dev/null
+    pkg install -y llama-cpp llama-cpp-backend-vulkan 2>/dev/null
     LLAMA_BIN=$(which llama-cli 2>/dev/null || which llama-cpp 2>/dev/null)
     if [ -n "$LLAMA_BIN" ] && [ -f "$LLAMA_BIN" ]; then
-      cp "$LLAMA_BIN" "$BIN_DIR/llama-cli"
+      ln -sf "$LLAMA_BIN" "$BIN_DIR/llama-cli"
       chmod +x "$BIN_DIR/llama-cli"
       success "llama-cli ready via Termux package!"
       return 0
@@ -345,7 +239,7 @@ SHIM
     info "Trying system package manager for llama-cli..."
     SYSTEM_BIN=$(which llama-cli 2>/dev/null)
     if [ -n "$SYSTEM_BIN" ] && [ -f "$SYSTEM_BIN" ]; then
-      cp "$SYSTEM_BIN" "$BIN_DIR/llama-cli"
+      ln -sf "$SYSTEM_BIN" "$BIN_DIR/llama-cli"
       chmod +x "$BIN_DIR/llama-cli"
       success "llama-cli ready from system!"
       return 0
@@ -394,10 +288,10 @@ SHIM
     # 32-bit ARM — try Termux pkg or build from source fallback
     warn "32-bit ARM detected. Trying pkg install as fallback..."
     if [ "$PLATFORM" = "termux" ]; then
-      pkg install -y llama-cpp 2>/dev/null
+      pkg install -y llama-cpp llama-cpp-backend-vulkan 2>/dev/null
       LLAMA_BIN=$(which llama-cli 2>/dev/null)
       if [ -n "$LLAMA_BIN" ]; then
-        cp "$LLAMA_BIN" "$BIN_DIR/llama-cli"
+        ln -sf "$LLAMA_BIN" "$BIN_DIR/llama-cli"
         chmod +x "$BIN_DIR/llama-cli"
         success "llama-cli ready!"
         return 0

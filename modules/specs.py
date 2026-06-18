@@ -20,9 +20,6 @@ from typing import Optional
 
 class Platform:
     TERMUX         = "termux"
-    MACOS          = "macos"
-    WSL            = "wsl"
-    WINDOWS_BASH   = "windows_bash"
     RASPBERRY_PI   = "raspberry_pi"
     ARCH           = "arch"
     FEDORA         = "fedora"
@@ -37,8 +34,7 @@ class Tier:
     LOW_MID     = "low_mid"     # 4–6GB
     MID         = "mid"         # 6–12GB
     HIGH        = "high"        # 12–24GB
-    DESKTOP     = "desktop"     # 24–64GB
-    WORKSTATION = "workstation" # 64GB+
+
 
 
 class Backend:
@@ -47,9 +43,6 @@ class Backend:
     LLAMA_CPP_CUDA       = "llama_cpp_cuda"
     LLAMA_CPP_ROCM       = "llama_cpp_rocm"
     LLAMA_CPP_VULKAN     = "llama_cpp_vulkan"
-    LLAMA_CPP_METAL      = "llama_cpp_metal"
-    OLLAMA               = "ollama"
-    MLX                  = "mlx"
     IPEX_LLM             = "ipex_llm"
 
 
@@ -62,7 +55,6 @@ class GPUVendor:
     AMD_VULKAN   = "amd_vulkan"
     INTEL_ARC    = "intel_arc"
     INTEL_IGPU   = "intel_igpu"
-    APPLE_METAL  = "apple_metal"
 
 
 # ── DeviceProfile dataclass ───────────────────────────────────────────────────
@@ -71,7 +63,6 @@ class GPUVendor:
 class DeviceProfile:
     # Platform
     platform:       str = Platform.UNKNOWN
-    mac_chip:       Optional[str] = None    # "apple_silicon" or "intel"
 
     # RAM
     ram_total_gb:   float = 0.0
@@ -122,104 +113,44 @@ class DeviceProfile:
 
 # ── Platform detection ────────────────────────────────────────────────────────
 
-def detect_platform() -> tuple[str, Optional[str]]:
-    """
-    Returns (platform_str, mac_chip_str).
-    mac_chip is "apple_silicon" or "intel" for macOS, None otherwise.
-    """
-    # Termux (Android)
-    if os.path.isdir("/data/data/com.termux"):
-        return Platform.TERMUX, None
-
-    # macOS
-    if platform.system() == "Darwin":
-        mac_chip = "apple_silicon" if platform.machine() == "arm64" else "intel"
-        return Platform.MACOS, mac_chip
-
-    # WSL2
-    try:
-        with open("/proc/version", "r") as f:
-            if "Microsoft" in f.read() or "microsoft" in f.read():
-                return Platform.WSL, None
-    except Exception:
-        pass
-
-    # Windows Bash (MSYS/Cygwin)
-    ostype = os.environ.get("OSTYPE", "")
-    if "msys" in ostype or "cygwin" in ostype:
-        return Platform.WINDOWS_BASH, None
-
-    # Raspberry Pi
+def detect_platform() -> str:
+    """Returns platform_str."""
+    if os.path.isdir("/data/data/com.termux"): return Platform.TERMUX
     try:
         with open("/proc/device-tree/model", "r") as f:
-            if "Raspberry Pi" in f.read():
-                return Platform.RASPBERRY_PI, None
-    except Exception:
-        pass
+            if "Raspberry Pi" in f.read(): return Platform.RASPBERRY_PI
+    except Exception: pass
     try:
         with open("/proc/cpuinfo", "r") as f:
-            content = f.read()
-            if "Raspberry Pi" in content or "BCM2" in content:
-                return Platform.RASPBERRY_PI, None
-    except Exception:
-        pass
+            c = f.read()
+            if "Raspberry Pi" in c or "BCM2" in c: return Platform.RASPBERRY_PI
+    except Exception: pass
+    if os.path.exists("/etc/arch-release"): return Platform.ARCH
+    if os.path.exists("/etc/fedora-release"): return Platform.FEDORA
+    if os.path.exists("/etc/debian_version"): return Platform.DEBIAN
+    if platform.system() == "Linux": return Platform.LINUX
+    return Platform.UNKNOWN
 
-    # Linux distros
-    if os.path.exists("/etc/arch-release"):
-        return Platform.ARCH, None
-    if os.path.exists("/etc/fedora-release"):
-        return Platform.FEDORA, None
-    if os.path.exists("/etc/debian_version"):
-        return Platform.DEBIAN, None
-    if platform.system() == "Linux":
-        return Platform.LINUX, None
-
-    return Platform.UNKNOWN, None
-
-
-# ── RAM detection ─────────────────────────────────────────────────────────────
 
 def _detect_ram() -> dict:
-    """Read RAM and swap from /proc/meminfo (Linux/Termux) or sysctl (macOS)."""
+    """Read RAM and swap from /proc/meminfo (Linux/Termux)."""
     try:
-        if platform.system() == "Darwin":
-            result = subprocess.run(
-                ["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, timeout=5
-            )
-            total_bytes = int(result.stdout.strip())
-            total_gb = round(total_bytes / 1024 / 1024 / 1024, 1)
-            # macOS vm_stat for available (approximate)
-            vm = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5)
-            free_pages = 0
-            page_size = 4096
-            for line in vm.stdout.splitlines():
-                if "Pages free" in line or "Pages speculative" in line:
-                    try:
-                        free_pages += int(line.split(":")[1].strip().rstrip("."))
-                    except Exception:
-                        pass
-            avail_gb = round(free_pages * page_size / 1024 / 1024 / 1024, 1)
-            return {
-                "total_gb": total_gb, "avail_gb": avail_gb,
-                "effective_gb": avail_gb, "swap_free_gb": 0.0
-            }
-        else:
-            with open("/proc/meminfo", "r") as f:
-                lines = f.readlines()
-            mem = {}
-            for line in lines:
-                parts = line.split()
-                if len(parts) >= 2:
-                    mem[parts[0].rstrip(":")] = int(parts[1])
-            total_gb = round(mem.get("MemTotal", 0) / 1024 / 1024, 1)
-            avail_gb = round(mem.get("MemAvailable", 0) / 1024 / 1024, 1)
-            swap_free_kb = mem.get("SwapFree", 0)
-            swap_free_gb = round(min(swap_free_kb, 1536 * 1024) / 1024 / 1024, 1)
-            effective_gb = round(avail_gb + swap_free_gb * 0.6, 1)
-            return {
-                "total_gb": total_gb, "avail_gb": avail_gb,
-                "effective_gb": effective_gb, "swap_free_gb": swap_free_gb
-            }
+        with open("/proc/meminfo", "r") as f:
+            lines = f.readlines()
+        mem = {}
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 2:
+                mem[parts[0].rstrip(":")] = int(parts[1])
+        total_gb = round(mem.get("MemTotal", 0) / 1024 / 1024, 1)
+        avail_gb = round(mem.get("MemAvailable", 0) / 1024 / 1024, 1)
+        swap_free_kb = mem.get("SwapFree", 0)
+        swap_free_gb = round(min(swap_free_kb, 1536 * 1024) / 1024 / 1024, 1)
+        effective_gb = round(avail_gb + swap_free_gb * 0.6, 1)
+        return {
+            "total_gb": total_gb, "avail_gb": avail_gb,
+            "effective_gb": effective_gb, "swap_free_gb": swap_free_gb
+        }
     except Exception as e:
         return {"total_gb": 0.0, "avail_gb": 0.0, "effective_gb": 0.0,
                 "swap_free_gb": 0.0, "error": str(e)}
@@ -252,24 +183,8 @@ def read_ram_full() -> dict:
 
 
 def read_available_ram_gb() -> float:
-    """
-    Return current available RAM in GB.
-    Reads /proc/meminfo on Linux/Termux, falls back to 0.0 on error.
-    This is the shared utility — chat.py and downloader.py import this
-    instead of maintaining their own copies.
-    """
+    """Return current available RAM in GB."""
     try:
-        if platform.system() == "Darwin":
-            vm = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5)
-            free_pages = 0
-            page_size  = 4096
-            for line in vm.stdout.splitlines():
-                if "Pages free" in line or "Pages speculative" in line:
-                    try:
-                        free_pages += int(line.split(":")[1].strip().rstrip("."))
-                    except Exception:
-                        pass
-            return round(free_pages * page_size / 1024 / 1024 / 1024, 2)
         with open("/proc/meminfo") as f:
             for line in f:
                 if line.startswith("MemAvailable"):
@@ -364,21 +279,7 @@ def _detect_cpu(plat: str) -> dict:
     try:
         arch = platform.machine()
 
-        if platform.system() == "Darwin":
-            result = subprocess.run(
-                ["sysctl", "-n", "machdep.cpu.brand_string"],
-                capture_output=True, text=True, timeout=5
-            )
-            model = result.stdout.strip() or "Apple Silicon"
-            cores_r = subprocess.run(
-                ["sysctl", "-n", "hw.physicalcpu"],
-                capture_output=True, text=True, timeout=5
-            )
-            cores = int(cores_r.stdout.strip()) if cores_r.stdout.strip().isdigit() else 4
-            return {
-                "model": model, "cores": cores, "arch": arch,
-                "flags": [], "big_cores": cores  # all cores similar on Apple
-            }
+
 
         with open("/proc/cpuinfo", "r") as f:
             content = f.read()
@@ -463,32 +364,8 @@ def _detect_cpu(plat: str) -> dict:
 
 # ── GPU detection ─────────────────────────────────────────────────────────────
 
-def _detect_gpu(plat: str, mac_chip: Optional[str]) -> dict:
-    """
-    Detect GPU vendor, model, VRAM, and whether it is usable for LLM inference.
-
-    Returns dict with: vendor, model, vram_mb, usable, note
-    """
-
-    # ── Apple Silicon ────────────────────────────────────────────────────────
-    if plat == Platform.MACOS and mac_chip == "apple_silicon":
-        return {
-            "vendor": GPUVendor.APPLE_METAL,
-            "model":  "Apple Silicon (Metal)",
-            "vram_mb": 0,   # unified — will be filled from RAM
-            "usable": True,
-            "note":   "Metal acceleration via unified memory",
-        }
-
-    # ── Intel Mac (no Metal GPU acceleration in llama.cpp) ──────────────────
-    if plat == Platform.MACOS and mac_chip == "intel":
-        return {
-            "vendor": GPUVendor.NONE,
-            "model":  "Intel (no Metal for LLM)",
-            "vram_mb": 0,
-            "usable": False,
-            "note":   "Intel Mac: llama.cpp Metal only works on Apple Silicon",
-        }
+def _detect_gpu(plat: str) -> dict:
+    """Detect GPU vendor, model, VRAM."""
 
     # ── Android / Termux ─────────────────────────────────────────────────────
     if plat == Platform.TERMUX:
@@ -602,7 +479,7 @@ def _detect_gpu(plat: str, mac_chip: Optional[str]) -> dict:
                     "model":  "AMD GPU (Vulkan)",
                     "vram_mb": 0,
                     "usable": True,
-                    "note":   "AMD Vulkan — ROCm not available (Windows or no ROCm installed)",
+                    "note":   "AMD Vulkan — ROCm not available",
                 }
 
             # Intel iGPU
@@ -679,34 +556,17 @@ def classify_tier(ram_total_gb: float) -> str:
         return Tier.MID
     elif ram_total_gb < 24:
         return Tier.HIGH
-    elif ram_total_gb < 64:
-        return Tier.DESKTOP
     else:
-        return Tier.WORKSTATION
+        return Tier.HIGH
 
 
 # ── Backend selection ─────────────────────────────────────────────────────────
 
-def select_backend(plat: str, mac_chip: Optional[str],
-                   gpu_vendor: str, gpu_usable: bool,
-                   cpu_flags: list) -> tuple[str, str]:
-    """
-    Returns (backend_str, reason_str).
-    """
+def select_backend(plat: str, gpu_vendor: str, gpu_usable: bool, cpu_flags: list) -> tuple[str, str]:
     # Termux — always pkg first, CPU only
     if plat == Platform.TERMUX:
         return (Backend.LLAMA_CPP_TERMUX_PKG,
                 "Termux: pkg install llama-cpp (CPU only — Android GPU not viable)")
-
-    # macOS Apple Silicon
-    if plat == Platform.MACOS and mac_chip == "apple_silicon":
-        return (Backend.OLLAMA,
-                "Apple Silicon: Ollama with Metal acceleration (easy setup)")
-
-    # macOS Intel — CPU only
-    if plat == Platform.MACOS and mac_chip == "intel":
-        return (Backend.LLAMA_CPP_CPU,
-                "Intel Mac: CPU only (Metal not available for llama.cpp on Intel)")
 
     # NVIDIA — CUDA
     if gpu_vendor == GPUVendor.NVIDIA and gpu_usable:
@@ -718,7 +578,7 @@ def select_backend(plat: str, mac_chip: Optional[str],
         return (Backend.LLAMA_CPP_ROCM,
                 "AMD GPU with ROCm detected — HIP/ROCm build")
 
-    # AMD Vulkan (Windows/no ROCm)
+    # AMD Vulkan (No ROCm)
     if gpu_vendor == GPUVendor.AMD_VULKAN and gpu_usable:
         return (Backend.LLAMA_CPP_VULKAN,
                 "AMD GPU (Vulkan) — ROCm not available, using Vulkan build")
@@ -790,8 +650,7 @@ def select_ctx_size(tier: str) -> int:
         Tier.LOW_MID:     1024,
         Tier.MID:         2048,
         Tier.HIGH:        4096,
-        Tier.DESKTOP:     8192,
-        Tier.WORKSTATION: 16384,
+
     }.get(tier, 2048)
 
 
@@ -804,8 +663,7 @@ def select_batch_size(tier: str) -> int:
         Tier.LOW_MID:     128,
         Tier.MID:         256,
         Tier.HIGH:        512,
-        Tier.DESKTOP:     512,
-        Tier.WORKSTATION: 512,
+
     }.get(tier, 256)
 
 
@@ -818,12 +676,12 @@ def select_mmap(plat: str) -> bool:
 
 def select_flash_attn(backend: str) -> bool:
     """Flash attention: enable for CUDA/Metal, not Vulkan."""
-    return backend in (Backend.LLAMA_CPP_CUDA, Backend.LLAMA_CPP_METAL, Backend.OLLAMA)
+    return backend in (Backend.LLAMA_CPP_CUDA,)
 
 
 def select_mlock(ram_total_gb: float, tier: str) -> bool:
     """mlock: only if we have ample RAM (reduces page-out latency)."""
-    return ram_total_gb >= 16 and tier in (Tier.HIGH, Tier.DESKTOP, Tier.WORKSTATION)
+    return ram_total_gb >= 16 and tier in (Tier.HIGH)
 
 
 # ── Model recommendations ─────────────────────────────────────────────────────
@@ -905,30 +763,8 @@ _MODEL_RECS: dict[str, list[ModelRecommendation]] = {
             "Strong reasoning/math model"
         ),
     ],
-    Tier.DESKTOP: [
-        ModelRecommendation(
-            "Qwen3 14B", "Qwen/Qwen3-14B-GGUF",
-            "qwen3-14b-q4_k_m.gguf", 9.0, "Q4_K_M",
-            "Step-up reasoning quality — excellent for complex tasks", primary=True
-        ),
-        ModelRecommendation(
-            "Mistral Small 3", "bartowski/Mistral-Small-3.1-24B-Instruct-2503-GGUF",
-            "Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf", 15.0, "Q4_K_M",
-            "Near-frontier quality if you have 24GB+"
-        ),
-    ],
-    Tier.WORKSTATION: [
-        ModelRecommendation(
-            "Qwen3 32B", "Qwen/Qwen3-32B-GGUF",
-            "qwen3-32b-q5_k_m.gguf", 24.0, "Q5_K_M",
-            "Near-frontier reasoning at maximum quality", primary=True
-        ),
-        ModelRecommendation(
-            "Llama 3.3 70B", "bartowski/Llama-3.3-70B-Instruct-GGUF",
-            "Llama-3.3-70B-Instruct-Q4_K_M.gguf", 43.0, "Q4_K_M",
-            "Best open-source model — needs 64GB+"
-        ),
-    ],
+
+
 }
 
 
@@ -954,7 +790,7 @@ def build_device_profile() -> DeviceProfile:
     errors = []
 
     # Platform
-    p.platform, p.mac_chip = detect_platform()
+    p.platform = detect_platform()
 
     # RAM
     ram = _detect_ram()
@@ -976,15 +812,14 @@ def build_device_profile() -> DeviceProfile:
         errors.append(f"CPU detection: {cpu['error']}")
 
     # GPU
-    gpu = _detect_gpu(p.platform, p.mac_chip)
+    gpu = _detect_gpu(p.platform)
     p.gpu_vendor  = gpu.get("vendor", GPUVendor.NONE)
     p.gpu_model   = gpu.get("model", "Unknown")
     p.gpu_vram_mb = gpu.get("vram_mb", 0)
     p.gpu_usable  = gpu.get("usable", False)
     p.gpu_note    = gpu.get("note", "")
     # Apple Silicon: VRAM = unified RAM
-    if p.gpu_vendor == GPUVendor.APPLE_METAL:
-        p.gpu_vram_mb = int(p.ram_total_gb * 1024)
+    
 
     # Android metadata
     if p.platform == Platform.TERMUX:
@@ -1003,7 +838,7 @@ def build_device_profile() -> DeviceProfile:
 
     # Backend selection
     p.backend, p.backend_reason = select_backend(
-        p.platform, p.mac_chip,
+        p.platform,
         p.gpu_vendor, p.gpu_usable,
         p.cpu_flags
     )
@@ -1059,8 +894,7 @@ _TIER_LABELS = {
     Tier.LOW_MID:     "Low-Mid",
     Tier.MID:         "Mid",
     Tier.HIGH:        "High",
-    Tier.DESKTOP:     "Desktop",
-    Tier.WORKSTATION: "Workstation",
+
 }
 
 _BACKEND_LABELS = {
@@ -1069,9 +903,6 @@ _BACKEND_LABELS = {
     Backend.LLAMA_CPP_CUDA:       "llama.cpp (CUDA)",
     Backend.LLAMA_CPP_ROCM:       "llama.cpp (ROCm/HIP)",
     Backend.LLAMA_CPP_VULKAN:     "llama.cpp (Vulkan)",
-    Backend.LLAMA_CPP_METAL:      "llama.cpp (Metal)",
-    Backend.OLLAMA:               "Ollama",
-    Backend.MLX:                  "MLX",
     Backend.IPEX_LLM:             "IPEX-LLM",
 }
 
@@ -1092,8 +923,6 @@ def format_device_profile(profile: DeviceProfile) -> str:
 
     # Platform
     plat_str = profile.platform.upper()
-    if profile.mac_chip:
-        plat_str += f" ({profile.mac_chip.replace('_', ' ').title()})"
     row("Platform",  plat_str)
     row("Arch",      profile.cpu_arch or "unknown")
 

@@ -11,7 +11,7 @@ import curses
 import json
 import time
 
-VERSION = "0.9.5"
+VERSION = "0.10.0"
 
 # Ensure modules directory is on path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +40,7 @@ except ImportError:
 from hf_search   import search_hf_models
 from ram_monitor import ram_one_line, print_ram_dashboard, read_ram_full
 from updater     import run_background_update, get_pending_version_notice
-
+from prober      import dynamic_probe_backend
 try:
     from modules.config  import load_config, apply_to_device_profile, show_config, create_default_config
 except ImportError:
@@ -127,8 +127,9 @@ def get_menu_items(device_profile=None):
     items += [
         ("🔧", t("menu_device"),   t("desc_device")),
         ("🩺", "Doctor",           "Check your install for issues"),
-        ("⚙️ ", "Config",           "View and edit your settings"),
-        ("🆙", "Update llamdrop",  "Pull latest version from GitHub"),
+                ("⚙️ ", "Config",           "View and edit your settings"),
+        ("🆙", "Update App",       "Pull latest llamdrop version from GitHub"),
+        ("⚡", "Update Engine",    "Update llama.cpp backend binary"),
         ("🌐", "Language / भाषा",  "Change display language"),
         ("❓", t("menu_help"),     t("desc_help")),
         ("✕",  t("menu_quit"),     ""),
@@ -784,7 +785,16 @@ def main():
         if _SPECS_OK:
             try:
                 # Reuse the already-built device_profile — no re-detection needed
-                print(c(CYAN, "  Analysing your hardware...\n"))
+                # Run dynamic prober
+                backend = dynamic_probe_backend(device_profile)
+                if backend == "vulkan":
+                    device_profile.gpu_layers = 999
+                    device_profile.gpu_usable = True
+                elif backend == "cpu":
+                    device_profile.gpu_layers = 0
+                    device_profile.gpu_usable = False
+
+                print(c(CYAN, "  Analysing your hardware...\\n"))
                 card = format_device_profile(device_profile)
                 for line in card.splitlines():
                     print("  " + line if not line.startswith("  ") else line)
@@ -801,7 +811,10 @@ def main():
                 input("  Press Enter to continue...")
             except Exception:
                 # Fallback to legacy first-run screen
-                print(c(CYAN, "  Detected your device:\n"))
+                # Run dynamic prober
+                backend = dynamic_probe_backend(device_profile)
+
+                print(c(CYAN, "  Detected your device:\\n"))
                 print(f"   Chip     : {cpu_name}")
                 print(f"   RAM      : {ram_avail}GB effective")
                 print(f"   Class    : {device_class}")
@@ -815,7 +828,10 @@ def main():
                 print("  llamdrop has auto-configured itself for your hardware.\n")
                 input("  Press Enter to continue...")
         else:
-            print(c(CYAN, "  Detected your device:\n"))
+            # Run dynamic prober
+            backend = dynamic_probe_backend(device_profile)
+
+            print(c(CYAN, "  Detected your device:\\n"))
             print(f"   Chip     : {cpu_name}")
             print(f"   RAM      : {ram_avail}GB effective")
             print(f"   Class    : {device_class}")
@@ -873,7 +889,12 @@ def main():
     # llamdrop was installed anywhere other than ~/.llamdrop.
     _user_models_json   = os.path.expanduser("~/.llamdrop/models.json")
     _bundled_models_json = os.path.join(SCRIPT_DIR, "models.json")
-    if os.path.exists(_user_models_json):
+    if os.path.exists(_user_models_json) and os.path.exists(_bundled_models_json):
+        if os.path.getmtime(_bundled_models_json) > os.path.getmtime(_user_models_json):
+            models_json = _bundled_models_json
+        else:
+            models_json = _user_models_json
+    elif os.path.exists(_user_models_json):
         models_json = _user_models_json
     elif os.path.exists(_bundled_models_json):
         models_json = _bundled_models_json
@@ -911,6 +932,7 @@ def main():
         IDX_DOCTOR   = _idx("🩺")
         IDX_CONFIG   = _idx("⚙️")
         IDX_UPDATE   = _idx("🆙")
+        IDX_ENGINE   = _idx("⚡")
         IDX_LANG     = _idx("🌐")
         IDX_HELP     = _idx("❓")
         IDX_QUIT     = _idx("✕")
@@ -1078,10 +1100,18 @@ def main():
         elif choice == IDX_UPDATE:
             os.system("clear")
             print_banner()
-            print(c(BOLD, "  Update llamdrop\n"))
+            print(c(BOLD, "  Update llamdrop App\\n"))
             from updater import run_self_update
             run_self_update(VERSION, verbose=True)
-            input(f"\n  {t('press_enter_back')}")
+            input(f"\\n  {t('press_enter_back')}")
+
+        # Update Engine
+        elif choice == IDX_ENGINE:
+            os.system("clear")
+            print_banner()
+            from updater import run_engine_update
+            run_engine_update(verbose=True)
+            input(f"\\n  {t('press_enter_back')}")
 
         # Language
         elif choice == IDX_LANG:

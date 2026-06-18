@@ -1,6 +1,35 @@
 # llamdrop Changelog
 
-## v0.9.5 — current
+## v0.10.0 — LTS Core Pivot
+
+### Engine & Diagnostics
+- **Dynamic Backend Probing**: llamdrop now runs a 10-second micro-benchmark with a 15M parameter dummy model during first run to automatically compare CPU vs. GPU (Vulkan) speeds, picking the fastest and most stable backend for the device.
+- **Independent Engine Updates**: Decoupled `llama.cpp` binary updates from the main app's python logic. Users can now selectively update the engine via the main menu `[Update Engine]` option.
+- **Auto-healing Doctor**: The `llamdrop doctor` now includes an auto-fix `[F]` key to automatically repair missing binaries, broken configs, and re-create directories when corrupted.
+
+### Power User Overrides
+- **Thermal & Battery Melt Bypass**: Added `allow_thermal_melt` to config.json. When enabled, it suppresses low-battery warnings and allows users to push their device to the absolute limit without the app blocking inference.
+- **Backend Forcing**: Users can now manually override the probed backend via config.json (`"backend": "vulkan"` or `"cpu"`).
+- **Show Unsupported Models**: Added `[U]` toggle in the model browser to unhide models that exceed available RAM, giving power users the choice to use aggressive swap space if they desire.
+
+### Content & Discovery
+- **Dynamic Catalog Overhaul**: `models.json` now fetches updates in the background on launch, ensuring users always have the newest catalog without a full app update.
+- **Catalog Pruning & Expansion**: Removed Qwen2.5 0.5B, Gemma 2 2B, Phi-3 Mini 3.8B, Phi-3.5 Mini 3.8B, and Qwen3.5 4B to keep the catalog focused. Added the brand new ultra-light Qwen3 0.6B for fast reasoning on budget hardware. Removed models aimed at 24GB+ desktop tiers. Catalog focuses strictly from Micro up to High tiers (16GB), adding `Provider` fields to all models.
+- **TUI Filters Overhaul**: Upgraded the model browser to support `Provider` filtering (via `[P]`) on top of Categories `[C]`.
+- **Search Improvisation**: `hf_search.py` now accepts direct HuggingFace file URLs (e.g. `https://huggingface.co/user/repo/resolve/main/file.gguf`) to bypass searching entirely. Live search sorts by `trendingScore`.
+
+### Trimming & Focusing
+- **Dropped Windows and macOS Support**: Removed `install.ps1`, WMI/macOS hardware polling from Python backend (`device.py`, `specs.py`), OS-specific logic from `install.sh`, and deleted all Windows/macOS GitHub testing workflows (`test-windows.yml`, `test-macos.yml`).
+- **Cleaned Up Repo Root**: Removed unused GitHub issue templates (`bug_report.yml`).
+- **Dropped Desktop Tier**: Removed "Desktop" and "Workstation" (24GB+) tier logic from core configuration to heavily focus on Micro (under 1GB) to High (16GB+) hardware.
+
+### Bug Fixes
+- **Browser Crash**: Fixed an `AttributeError` crash when opening the Model Browser caused by a malformed dict structure in `models.json`.
+- **Main Menu UI**: Fixed the main menu header showing "Unknown - 1 cores" by properly mapping the new `DeviceProfile` object into the legacy UI formatting logic.
+- **Model Details UI**: Fixed a bug where `best_for` model attributes were rendered with terrible comma-spacing by removing an accidental `", ".join()` on strings.
+- **Catalog Cap**: Removed Phi-4 14B from `models.json` as it exceeded our new Extended tier cap.
+- **Catalog Synchronization**: Fixed an issue where the app would prefer a stale `~/.llamdrop/models.json` cache over a newly pulled bundled copy. It now strictly favors the file with the most recent modification time.
+## v0.9.5 — previous
 
 ### Core Audit & Logic Unification
 Unified all RAM monitoring logic into `modules/specs.py`. This eliminates duplication across `chat.py`, `downloader.py`, and `ram_monitor.py`, ensuring consistent memory reporting throughout the application.

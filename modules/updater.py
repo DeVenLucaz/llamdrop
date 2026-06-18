@@ -47,6 +47,7 @@ UPDATE_FILES = {
     "modules/backends/ollama.py":   "modules/backends/ollama.py",
     "modules/filecontext.py":        "modules/filecontext.py",
     "modules/specs.py":              "modules/specs.py",
+    "modules/prober.py":             "modules/prober.py",
 }
 
 # Files that should NEVER be touched by update
@@ -403,4 +404,27 @@ def _refresh_catalog_silent():
                 f.write(text)
     except Exception:
         pass
+
+
+def run_engine_update(verbose=True):
+    """
+    Independent llama.cpp Engine Update.
+    Decoupled from main app update.
+    """
+    p = print if verbose else lambda *args, **kwargs: None
+    from config import load_config
+    config = load_config()
+    platform = config.get("platform", "termux")
+    
+    p("\n  \033[1mUpdate llama.cpp engine\033[0m\n")
+    if platform == "termux":
+        p("  Running Termux package update for llama-cpp...")
+        ret = os.system("pkg update -y llama-cpp llama-cpp-backend-vulkan")
+        if ret == 0:
+            p("  \033[32m✓ Engine successfully updated via Termux.\033[0m")
+        else:
+            p("  \033[31m✗ Engine update failed.\033[0m")
+    else:
+        p("  \033[33m⚠ Engine updates are currently only automated for Termux.\033[0m")
+        p("  For Linux, please re-run install.sh or update via your package manager.")
 

@@ -36,6 +36,8 @@ CONFIG_SCHEMA = {
     "system_prompt":      {"type": str,   "default": None},
     "auto_save_sessions": {"type": bool,  "default": True},
     "warn_battery_below": {"type": int,   "default": 15,    "min": 0,   "max": 100},
+    "backend":            {"type": str,   "default": "auto"},
+    "allow_thermal_melt": {"type": bool,  "default": False},
 }
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -190,6 +192,14 @@ def apply_to_device_profile(device_profile):
             device_profile.ctx_size   = config["context_size"]
         if config.get("batch_size") is not None:
             device_profile.batch_size = config["batch_size"]
+        
+        backend = config.get("backend", "auto")
+        if backend == "cpu":
+            device_profile.gpu_layers = 0
+            device_profile.gpu_usable = False
+        elif backend == "vulkan":
+            device_profile.gpu_layers = 999
+            device_profile.gpu_usable = True
     else:
         # Legacy dict profile
         if config.get("threads") is not None:

@@ -105,38 +105,47 @@ def _size_gb_from_siblings(siblings):
 
 def search_hf_models(query, device_profile, limit=20):
     """
-    Search HuggingFace for GGUF models matching the query.
+    Search HuggingFace for GGUF models matching the query or exact repo URL.
     Filters by estimated RAM compatibility with the device.
     Returns list of model dicts in llamdrop format.
-
-    Args:
-        query:          str — search terms e.g. "qwen coding" or "llama instruct"
-        device_profile: dict — from device.py
-        limit:          int — max results to fetch from HF API
-
-    Returns:
-        list of model dicts (same format as models.json entries)
     """
-    # Normalize query — extra spaces and mixed case produce fewer HF API results
-    query = query.strip().lower()
-
+    query = query.strip()
     avail_ram = dp_ram_avail_gb(device_profile) - 0.5
-
-    # Build search URL
-    # HF API: search by library=gguf, sort by downloads, filter by search term
-    params = urllib.parse.urlencode({
-        "search":   query,
-        "library":  "gguf",
-        "sort":     "downloads",
-        "direction":"-1",
-        "limit":    str(limit),
-        "full":     "true",
-    })
-    url = f"{HF_API_BASE}/models?{params}"
-
-    raw_results = _get(url)
+    
+    raw_results = []
+    
+    # 1. Exact Repo / URL parse
+    if "/" in query and " " not in query:
+        # Extract author/repo
+        repo_id = query
+        if "huggingface.co/" in query:
+            # Handle direct download links and repo links
+            path_parts = query.split("huggingface.co/")[-1].strip("/").split("/")
+            if len(path_parts) >= 2:
+                repo_id = f"{path_parts[0]}/{path_parts[1]}"
+        elif len(query.split("/")) >= 2:
+            path_parts = query.split("/")
+            repo_id = f"{path_parts[0]}/{path_parts[1]}"
+            
+        url = f"{HF_API_BASE}/models/{repo_id}"
+        result = _get(url)
+        if result:
+            raw_results = [result]
+    
+    # 2. Text Search
     if not raw_results:
-        return []
+        q_lower = query.lower()
+        # Sort by trendingScore instead of downloads
+        params = urllib.parse.urlencode({
+            "search":   q_lower,
+            "library":  "gguf",
+            "sort":     "trendingScore",
+            "direction":"-1",
+            "limit":    str(limit),
+            "full":     "true",
+        })
+        url = f"{HF_API_BASE}/models?{params}"
+        raw_results = _get(url) or []
 
     models = []
     for item in raw_results:
@@ -150,11 +159,10 @@ def search_hf_models(query, device_profile, limit=20):
         if not variants:
             continue
 
-        # Find best variant for this device
         best_key     = None
         best_variant = None
+        compat       = "good"
 
-        # Prefer Q4_K_M > Q4_K > Q3_K_M > Q2_K > smallest
         pref_order = ["Q4_K_M", "Q5_K_M", "Q4_K_S", "Q4_K", "Q3_K_M", "Q3_K", "Q2_K"]
         for pref in pref_order:
             if pref in variants and variants[pref]["min_ram_gb"] <= avail_ram:
@@ -162,7 +170,6 @@ def search_hf_models(query, device_profile, limit=20):
                 best_variant = variants[pref]
                 break
 
-        # If none of preferred found, try any that fits
         if best_variant is None:
             for k, v in sorted(variants.items(), key=lambda x: x[1]["min_ram_gb"]):
                 if v["min_ram_gb"] <= avail_ram:
@@ -171,21 +178,20 @@ def search_hf_models(query, device_profile, limit=20):
                     break
 
         if best_variant is None:
-            # Model too large — skip
-            continue
-
-        # Determine compatibility label
-        if best_variant["min_ram_gb"] <= avail_ram * 0.7:
-            compat = "excellent"
-        elif best_variant["min_ram_gb"] <= avail_ram:
-            compat = "good"
+            # Pick smallest but mark as exceeds
+            best_key, best_variant = min(variants.items(), key=lambda x: x[1]["min_ram_gb"])
+            compat = "exceeds"
         else:
-            compat = "marginal"
+            if best_variant["min_ram_gb"] <= avail_ram * 0.7:
+                compat = "excellent"
+            elif best_variant["min_ram_gb"] <= avail_ram:
+                compat = "good"
+            else:
+                compat = "marginal"
 
         params_b = _estimate_params_from_name(repo_id)
         params_str = f"{params_b}B" if params_b else "?"
 
-        # Determine tier from estimated params
         if params_b is None or params_b <= 1.5:
             tier = 1
         elif params_b <= 3.5:
@@ -193,12 +199,16 @@ def search_hf_models(query, device_profile, limit=20):
         else:
             tier = 3
 
+        notes = f"⚠ Unverified — RAM estimate from file size only. Downloaded {item.get('downloads', 0):,}× on HuggingFace."
+        if compat == "exceeds":
+            notes = "⚠ EXCEEDS RAM: This model requires more RAM than your device has available. It will use slow swap memory or crash."
+
         model_entry = {
             "id":                repo_id.replace("/", "_").lower(),
             "name":              repo_id.split("/")[-1],
             "params":            params_str,
             "tier":              tier,
-            "verified":          False,   # live search = not verified
+            "verified":          False,
             "hf_repo":           repo_id,
             "best_for":          ["general chat"],
             "language_support":  ["english"],
@@ -206,7 +216,7 @@ def search_hf_models(query, device_profile, limit=20):
             "license_allows_free_use": True,
             "variants":          variants,
             "confirmed_devices": [],
-            "notes":             f"⚠ Unverified — RAM estimate from file size only. Downloaded {item.get('downloads', 0):,}× on HuggingFace.",
+            "notes":             notes,
             "_best_variant_key": best_key,
             "_best_variant":     best_variant,
             "_compatibility":    compat,

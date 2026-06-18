@@ -301,20 +301,9 @@ def get_device_class(ram_info, cpu_info, platform):
       ultra_low  — <2GB effective RAM
       low        — 2–4GB effective RAM
       mid        — 4–8GB effective RAM
-      high       — 8–16GB RAM
-      desktop    — 16GB+ RAM or Linux non-ARM
+      high       — 8GB+ RAM
     """
     avail = ram_info.get("effective_avail_gb", ram_info.get("available_gb", 0))
-    total = ram_info.get("total_gb", 0)
-    arch  = cpu_info.get("arch", "")
-
-    if platform in ("linux", "raspberry_pi") and "aarch64" not in arch:
-        if total >= 16:
-            return "desktop"
-        elif total >= 8:
-            return "high"
-        else:
-            return "mid"
 
     if avail < 2.0:
         return "ultra_low"
@@ -322,10 +311,8 @@ def get_device_class(ram_info, cpu_info, platform):
         return "low"
     elif avail < 8.0:
         return "mid"
-    elif avail < 16.0:
-        return "high"
     else:
-        return "desktop"
+        return "high"
 
 
 def get_tier_recommendation(device_class, ollama_info):
@@ -356,21 +343,13 @@ def get_tier_recommendation(device_class, ollama_info):
             "suggested_models": ["Qwen3 4B", "Gemma 3 4B", "Llama 3.2 3B"],
             "install_note":     f"Solid device. Using {backend}. Tier 2 models run well.",
         }
-    elif device_class == "high":
+    else: # high
         backend = "ollama" if ollama_available else "llama.cpp"
         return {
             "backend":          backend,
             "model_tier":       3,
             "suggested_models": ["Mistral 7B", "DeepSeek R1 7B", "Qwen3 4B Q5"],
             "install_note":     f"Powerful device. Using {backend}. Tier 3 available.",
-        }
-    else:  # desktop
-        backend = "ollama" if ollama_available else "llama.cpp"
-        return {
-            "backend":          backend,
-            "model_tier":       3,
-            "suggested_models": ["Mistral 7B", "DeepSeek R1 7B", "Llama 3.2 3B Q8"],
-            "install_note":     f"Desktop/server. Using {backend}. All models available.",
         }
 
 
@@ -418,16 +397,26 @@ def get_device_profile():
 
 def format_profile_summary(profile):
     """Returns a human-readable one-line summary of device specs."""
-    ram          = profile["ram"] if isinstance(profile, dict) else vars(profile).get("ram", {})
-    cpu          = profile["cpu"] if isinstance(profile, dict) else vars(profile).get("cpu", {})
-    avail        = ram.get("available_gb", 0)
-    total        = ram.get("total_gb", 0)
-    swap         = ram.get("swap_free_gb", 0)
-    cores        = cpu.get("cores", 1)
-    chip         = cpu.get("chip", "Unknown")
-    plat         = profile.get("platform", "unknown") if isinstance(profile, dict) else getattr(profile, "platform", "unknown")
-    device_class = profile.get("device_class", "") if isinstance(profile, dict) else getattr(profile, "device_class", "")
-    threads      = profile.get("optimal_threads", "?") if isinstance(profile, dict) else getattr(profile, "optimal_threads", "?")
+    if not isinstance(profile, dict):
+        avail        = getattr(profile, "ram_avail_gb", 0)
+        total        = getattr(profile, "ram_total_gb", 0)
+        swap         = getattr(profile, "swap_free_gb", 0)
+        cores        = getattr(profile, "cpu_cores", 1)
+        chip         = getattr(profile, "cpu_model", "Unknown")
+        plat         = getattr(profile, "platform", "unknown")
+        device_class = getattr(profile, "tier", "")
+        threads      = getattr(profile, "threads", "?")
+    else:
+        ram          = profile.get("ram", {})
+        cpu          = profile.get("cpu", {})
+        avail        = ram.get("available_gb", 0)
+        total        = ram.get("total_gb", 0)
+        swap         = ram.get("swap_free_gb", 0)
+        cores        = cpu.get("cores", 1)
+        chip         = cpu.get("chip", "Unknown")
+        plat         = profile.get("platform", "unknown")
+        device_class = profile.get("device_class", "")
+        threads      = profile.get("optimal_threads", "?")
 
     swap_str  = f" +{swap}GB swap" if swap > 0 else ""
     class_str = f" · {device_class}" if device_class else ""

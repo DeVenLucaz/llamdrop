@@ -3,10 +3,10 @@
 > **Run AI on any device. No PC. No subscription. No struggle.**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Linux%20%7C%20RPi%20%7C%20macOS%20%7C%20Windows-green.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Linux%20%7C%20RPi-green.svg)]()
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)]()
 [![Free Forever](https://img.shields.io/badge/Free-Forever-brightgreen.svg)]()
-[![Version](https://img.shields.io/badge/Version-0.9.5-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.10.0-blue.svg)]()
 
 ---
 
@@ -31,8 +31,6 @@ llamdrop is for **anyone on low-end or budget hardware** who keeps getting left 
 - 💻 **Old laptop owners** — that 2012 laptop collecting dust can run AI
 - 🍓 **Raspberry Pi / SBC users** — Pi 4, Pi 5, Orange Pi, etc.
 - 🎮 **Console / embedded Linux users** — if it runs Linux, llamdrop runs on it
-- 🪟 **Windows users** — native PowerShell installer, no WSL required
-- 🍎 **macOS users** — Apple Silicon detected, Ollama backend auto-configured
 - 🌍 **Users in regions** where $20/month is not a small amount
 - 🧑‍🎓 **Students and self-learners** wanting to experiment with AI for free
 - 🔧 **Developers and tinkerers** who want to test local AI on constrained hardware
@@ -43,16 +41,10 @@ llamdrop is for **anyone on low-end or budget hardware** who keeps getting left 
 
 ## Quick Install
 
-**Android (Termux) / Linux / Raspberry Pi / macOS:**
+**Android (Termux) / Linux / Raspberry Pi:**
 
 ```bash
 curl -sL https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.sh | bash
-```
-
-**Windows (PowerShell, run as Administrator):**
-
-```powershell
-irm https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.ps1 | iex
 ```
 
 Then run:
@@ -69,16 +61,16 @@ Two commands. No compilation. No configuration. No account needed.
 
 ### Device Intelligence
 - 🔍 **Full device profiling** — reads RAM, CPU model, core layout (big.LITTLE aware), CPU flags (AVX2/AVX512/NEON), GPU vendor, storage, Android SoC/API level
-- 🖥️ **7-tier classification** — Micro / Low / Low-Mid / Mid / High / Desktop / Workstation — auto-configures everything per tier
-- 🧠 **Backend auto-selection** — picks the correct backend for every platform×GPU combination: Termux pkg, CUDA, ROCm, Vulkan, Metal/Ollama, IPEX-LLM, or CPU
+- 🖥️ **5-tier classification** — Micro / Low / Low-Mid / Mid / High — auto-configures everything per tier
+- 🧠 **Backend auto-selection** — picks the correct backend for every platform×GPU combination: Termux pkg, CUDA, ROCm, Vulkan, or CPU
 - ⚡ **GPU acceleration** — Vulkan for Adreno/Mali/AMD desktop, CUDA for NVIDIA, Metal via Ollama on Apple Silicon
-- 🚫 **Android GPU safety** — never forces GPU on Android (Mali Vulkan is slower than CPU; Adreno crashes). CPU-only, no guessing.
+- ⚡ **Dynamic Backend Probing** — Runs a 10-second micro-benchmark on first boot to guarantee the fastest and most stable backend (CPU vs GPU) for your specific hardware.
 - 👋 **First-launch Device Profile** — shows detected specs card with tier, backend decision, runtime flags, and model recommendations. Runs once.
 
 ### Model Browser & Download
 - 📋 **Smart model browser** — two modes:
   - ✅ **Verified catalog** — 41 curated models confirmed working across all device tiers, filtered automatically to show only what fits your hardware
-  - 🔎 **Live HuggingFace search** — search any GGUF model with live RAM estimates
+  - 🔎 **Live HuggingFace search** — Search any GGUF model, or paste a raw HuggingFace download URL to bypass searching entirely.
 - ⬇️ **Resilient downloader** — auto-resumes on connection drops, retries automatically, verifies via SHA-256 checksum
 - 🎯 **Smart quantization** — picks the best Q4/Q2/Q5/IQ variant based on your *live* RAM at download time
 - 🧩 **IQ quant support** — IQ3_M and IQ2_M variants — better quality than Q2_K at same RAM. Vulkan auto-disabled for IQ quants.
@@ -97,7 +89,12 @@ Two commands. No compilation. No configuration. No account needed.
 
 ### System & UX
 - ⚠️ **Live RAM monitor** — colour-coded bar in UI (green/yellow/red)
-- 🔋 **Battery monitoring** — shows charge %, per-inference battery drop, warns at configurable low threshold
+- 🔋 **Battery monitoring** — shows charge %, per-inference battery drop, warns at configurable low threshold (bypassable via `allow_thermal_melt`)
+
+### Power User Overrides & Diagnostics
+- 🩺 **Auto-healing Doctor** — Automatically repairs broken configs, missing directories, or corrupted binaries with a single keystroke `[F]`.
+- ⚡ **Independent Engine Updates** — Update the `llama.cpp` core engine separately from the UI scripts.
+- 🔓 **Full Control** — Toggle to unhide models that exceed your physical RAM (`[U]`), force specific backends (`backend`), or disable thermal/battery safeguards completely (`allow_thermal_melt`).
 - 📂 **Phone-wide GGUF scanner** — finds models already on your device. Runs in background — UI stays responsive.
 - 🆙 **Self-update** — `llamdrop update` pulls latest version from GitHub
 - 🩺 **Doctor** — `llamdrop doctor` checks binary, libraries, RAM, storage, network, Python version, Termux permissions, and Ollama status. `--cleanup` removes orphaned partial downloads.

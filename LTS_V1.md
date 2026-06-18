@@ -40,7 +40,7 @@ This document outlines the final architectural roadmap for LLAMdrop version 1.0 
 ## 3. Intelligence & Stability (LTS Durability)
 
 **Feature:** Dynamic Backend Probing.
-*   **Logic:** On first launch, run a 2-second micro-benchmark with a 15M parameter dummy model. Test the CPU backend, then test the GPU (Vulkan) backend. Whichever produces tokens faster without crashing becomes the default backend.
+*   **Logic:** On first launch, run a 10-second micro-benchmark with a 15M parameter dummy model. Test the CPU backend, then test the GPU (Vulkan) backend. Whichever produces tokens faster without crashing becomes the default backend.
 *   **Reasoning:** Hardcoded rules (like `if Mali: disable Vulkan`) are brittle and break when new chips are released. Probing lets the hardware prove what it can handle, making the app future-proof for years.
 
 **Feature:** Independent Engine Updates (`llamdrop engine-update`).
@@ -67,6 +67,6 @@ This document outlines the final architectural roadmap for LLAMdrop version 1.0 
 *   **Logic:** Ensure every "smart" or "safety" feature can be bypassed via `~/.llamdrop/config.json` or hotkeys.
     *   **Throttling:** Allow users to disable battery/thermal throttling (`"allow_thermal_melt": true`).
     *   **Backend Selection:** Allow users to force a specific backend (e.g., `--backend vulkan`) ignoring the Dynamic Prober's recommendation.
-    *   **RAM Limits:** Add a toggle `[F3: Show Unsupported Models]` to unhide models that exceed the device's physical RAM, allowing users to experiment with massive swap files.
+    *   **RAM Limits:** Add a toggle `[U: Unhide Unsupported Models]` to unhide models that exceed the device's physical RAM, allowing users to experiment with massive swap files.
     *   **Raw Flags:** Allow passing arbitrary launch flags directly to the underlying `llama.cpp` binary.
 *   **Reasoning:** Linux and Termux users demand control. While LLAMdrop provides safe, sensible defaults to prevent crashes on budget hardware, it must never artificially lock out users who intentionally want to push their devices beyond safe limits.

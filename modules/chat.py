@@ -300,7 +300,7 @@ def _dispatch_inference(cmd, prompt, max_tokens, temperature, device_profile,
     else:
         ollama_info = {}  # DeviceProfile dataclass: Ollama running status not stored here
 
-    if ollama_model and ollama_info.get("running"):
+    if ollama_model:
         try:
             from backends.ollama import run_inference as ollama_infer
             from backends.ollama import parse_tps_from_response
@@ -348,16 +348,24 @@ def run_chat(cmd, model_name, device_profile, model_path=None, prompt_format='ch
 
     # Battery check before starting
     if BATTERY_AVAILABLE:
-        warn_below = get("warn_battery_below", 15)
-        ok, msg = check_battery_before_chat(warn_below)
-        if not ok:
-            print(f"\n  {msg}\n")
-            try:
-                cont = input("  Continue anyway? (y/N): ").strip().lower()
-                if cont != "y":
+        try:
+            from config import load_config
+            cfg = load_config()
+            melt_allowed = cfg.get("allow_thermal_melt", False)
+        except ImportError:
+            melt_allowed = False
+
+        if not melt_allowed:
+            warn_below = get("warn_battery_below", 15)
+            ok, msg = check_battery_before_chat(warn_below)
+            if not ok:
+                print(f"\n  {msg}\n")
+                try:
+                    cont = input("  Continue anyway? (y/N): ").strip().lower()
+                    if cont != "y":
+                        return
+                except (EOFError, KeyboardInterrupt):
                     return
-            except (EOFError, KeyboardInterrupt):
-                return
 
     _print_chat_header(model_name, device_profile, file_context_name=file_context_name)
 

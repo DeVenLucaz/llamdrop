@@ -516,7 +516,7 @@ def check_ollama():
     if not info["installed"]:
         _warn("Ollama not installed",
               fix="Install from https://ollama.com — needed only on Linux/desktop")
-        return False
+        return None
 
     _ok("Ollama installed", info.get("version", ""))
 
@@ -632,9 +632,43 @@ def run_doctor():
     if not issues:
         print(f"  {GREEN}{BOLD}✓ Everything looks good!{RESET}")
         print(f"  llamdrop is healthy and ready to use.")
-    else:
-        print(f"  {YELLOW}Found {len(issues)} issue(s):{RESET}\n")
+    if issues:
+        print(f"  {YELLOW}Found {len(issues)} issue(s):{RESET}\\n")
         for i, issue in enumerate(issues, 1):
             print(f"  {i}. {issue}")
+        print("\\n  Press 'F' to attempt auto-fix, or Enter to return.")
+        try:
+            # We need to read a char
+            import sys, tty, termios
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(sys.stdin.fileno())
+                ch = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            
+            if ch.lower() == 'f':
+                print("\\n  Attempting auto-fix...")
+                if not results.get("binary"):
+                    print("  Fixing binary...")
+                    os.system("curl -s https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/install.sh | bash")
+                if not results.get("dirs"):
+                    print("  Fixing directories...")
+                    os.makedirs(BIN_DIR, exist_ok=True)
+                    os.makedirs(MODELS_DIR, exist_ok=True)
+                    os.makedirs(SESSIONS_DIR, exist_ok=True)
+                if not results.get("catalog"):
+                    print("  Fixing models.json...")
+                    os.system(f"curl -s https://raw.githubusercontent.com/DeVenLucaz/llamdrop/main/models.json -o {MODELS_JSON}")
+                if not results.get("config"):
+                    print("  Fixing config.json...")
+                    os.system(f"rm -f {LLAMDROP_DIR}/config.json")
+                if not results.get("termux"):
+                    print("  Fixing termux storage...")
+                    os.system("termux-setup-storage")
+                print("  Auto-fix complete. Please re-run doctor to verify.\\n")
+        except:
+            pass
 
     print("")

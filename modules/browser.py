@@ -55,16 +55,21 @@ def model_visible_for_device(model, device_tier):
 def load_models(models_json_path=None):
     """Load models.json from the llamdrop install directory."""
     if models_json_path is None:
-        # Look in ~/.llamdrop first, then current directory
-        candidates = [
-            os.path.expanduser("~/.llamdrop/models.json"),
-            os.path.join(os.path.dirname(__file__), "..", "models.json"),
-            "models.json",
-        ]
-        for path in candidates:
-            if os.path.exists(path):
-                models_json_path = path
-                break
+        user_json = os.path.expanduser("~/.llamdrop/models.json")
+        repo_json = os.path.join(os.path.dirname(__file__), "..", "models.json")
+        fallback_json = "models.json"
+        
+        if os.path.exists(user_json) and os.path.exists(repo_json):
+            if os.path.getmtime(repo_json) > os.path.getmtime(user_json):
+                models_json_path = repo_json
+            else:
+                models_json_path = user_json
+        elif os.path.exists(user_json):
+            models_json_path = user_json
+        elif os.path.exists(repo_json):
+            models_json_path = repo_json
+        elif os.path.exists(fallback_json):
+            models_json_path = fallback_json
 
     if not models_json_path or not os.path.exists(models_json_path):
         return []
@@ -75,7 +80,7 @@ def load_models(models_json_path=None):
     return data.get("models", [])
 
 
-def filter_models_for_device(models, device_profile):
+def filter_models_for_device(models, device_profile, show_unsupported=False):
     """
     Return only models that can run on this device.
     Also attaches the best variant and marks compatibility level.
@@ -90,17 +95,13 @@ def filter_models_for_device(models, device_profile):
     for model in models:
         # Gate 1: tier range — hide models irrelevant for this device class.
         # e.g. 135M models hidden on desktop, 70B models hidden on phones.
-        if not model_visible_for_device(model, device_tier):
+        if not show_unsupported and not model_visible_for_device(model, device_tier):
             continue
-
-        # Gate 2: RAM — only show models that can actually run
 
         # Find best variant for available RAM
         best_variant = None
         best_key     = None
 
-        # Prefer highest quality that fits — order must match hf_search.py and
-        # downloader.py so the same model gets the same variant in all places.
         for quant_pref in ["Q8_0", "Q6_K", "Q5_K_M", "Q5_K_S", "Q5_K",
                            "Q4_K_M", "Q4_K_S", "Q4_K",
                            "Q3_K_M", "Q3_K", "IQ3_M", "IQ2_M", "Q2_K"]:
@@ -120,15 +121,18 @@ def filter_models_for_device(models, device_profile):
                     break
 
         if best_variant is None:
-            # No variant fits — mark as marginal if only slightly over
-            # Check if the smallest variant is within 20% of available RAM
+            # No variant fits
             smallest = min(model["variants"].values(), key=lambda x: x["min_ram_gb"])
             if smallest["min_ram_gb"] <= usable_ram * 1.2:
                 best_variant = smallest
                 best_key     = min(model["variants"], key=lambda k: model["variants"][k]["min_ram_gb"])
                 compatibility = "marginal"
             else:
-                continue
+                if not show_unsupported:
+                    continue
+                best_variant = smallest
+                best_key     = min(model["variants"], key=lambda k: model["variants"][k]["min_ram_gb"])
+                compatibility = "exceeds"
         else:
             # Good or excellent
             if best_variant["min_ram_gb"] <= usable_ram * 0.7:
@@ -151,12 +155,14 @@ COMPAT_ICONS = {
     "excellent": "●",   # solid green
     "good":      "●",   # yellow
     "marginal":  "◐",   # half — risky
+    "exceeds":   "○",   # hollow — exceeds RAM
 }
 
 COMPAT_LABELS = {
     "excellent": "Great fit",
     "good":      "Good fit",
     "marginal":  "Tight on RAM",
+    "exceeds":   "EXCEEDS RAM",
 }
 
 TIER_LABELS = {
@@ -170,8 +176,8 @@ TIER_LABELS = {
 }
 
 
-def draw_header(stdscr, device_profile, width, category_label="All"):
-    """Draw the top header bar with active category filter."""
+def draw_header(stdscr, device_profile, width, filter_label="All"):
+    """Draw the top header bar with active filters."""
     avail = dp_ram_avail_gb(device_profile)
     total = dp_ram_total_gb(device_profile)
     chip  = dp_cpu_name(device_profile)[:20]
@@ -183,7 +189,7 @@ def draw_header(stdscr, device_profile, width, category_label="All"):
     stdscr.addstr(0, 0, title.ljust(width)[:width])
     stdscr.attroff(curses.color_pair(1) | curses.A_BOLD)
 
-    specs = f" RAM: {avail}GB free / {total}GB  |  {chip}  |  {tier_label}  |  Filter: {category_label} [C] "
+    specs = f" RAM: {avail}GB free / {total}GB  |  {chip}  |  {tier_label}  |  Filter: {filter_label} "
     stdscr.attron(curses.color_pair(2))
     stdscr.addstr(1, 0, specs.ljust(width)[:width])
     stdscr.attroff(curses.color_pair(2))
@@ -191,7 +197,7 @@ def draw_header(stdscr, device_profile, width, category_label="All"):
 
 def draw_footer(stdscr, height, width):
     """Draw the bottom help bar."""
-    help_text = " ↑↓ Navigate   Enter Select   C Filter   Q Quit "
+    help_text = " ↑↓ Navigate  Enter Select  C Cat  P Prov  U Unhide  Q Quit "
     stdscr.attron(curses.color_pair(1))
     try:
         stdscr.addstr(height - 1, 0, help_text.ljust(width)[:width])
@@ -267,7 +273,7 @@ def draw_detail_panel(stdscr, model, detail_top, width):
         return
 
     name       = model.get("name", "")
-    best_for   = ", ".join(model.get("best_for", []))
+    best_for   = model.get("best_for", "")
     langs      = ", ".join(model.get("language_support", ["english"]))
     license_   = model.get("license", "")
     notes      = model.get("notes", "")
@@ -305,7 +311,7 @@ def draw_detail_panel(stdscr, model, detail_top, width):
             pass
 
 
-def run_browser(stdscr, models, device_profile):
+def run_browser(stdscr, all_models, device_profile):
     """Main curses loop for the model browser. Returns selected model or None."""
     curses.curs_set(0)
     stdscr.keypad(True)
@@ -322,7 +328,8 @@ def run_browser(stdscr, models, device_profile):
     selected        = 0
     scroll_offset   = 0
     benchmarks      = get_all_benchmarks()
-    active_category = None  # None = show all
+    active_category = None
+    active_provider = None
 
     CATEGORY_CYCLE = [None, "chat", "coding", "reasoning", "multilingual", "fast", "math"]
     CATEGORY_ICONS = {
@@ -335,20 +342,25 @@ def run_browser(stdscr, models, device_profile):
         "math":        "🔢 Math",
     }
 
+    PROVIDER_CYCLE = [None, "Alibaba", "Meta", "Google", "Microsoft", "DeepSeek", "Mistral", "Cohere", "HuggingFace", "Other"]
+
     # ── Category cache ────────────────────────────────────────────────────────
     # filter_models_for_device() (tier gate + RAM gate + variant picking) runs
     # once here — the result is `filtered_models`. Category switching inside the
     # curses loop is then a simple list comprehension on this cached list, with
     # no repeated RAM reads or model evaluation on each keypress.
-    filtered_models = models  # already filtered by show_browser before entering
+    show_unsupported = False
+    filtered_models = filter_models_for_device(all_models, device_profile, show_unsupported)
 
     # Pre-build per-category slices so C keypresses are O(n) list comprehensions
     # on the cached filtered list rather than re-running the full filter pipeline.
-    def _apply_category(cat):
-        if not cat:
-            return filtered_models
-        result = [m for m in filtered_models if cat in m.get("categories", [])]
-        return result if result else filtered_models  # fallback to all if empty
+    def _apply_filters(cat, prov):
+        result = filtered_models
+        if cat:
+            result = [m for m in result if cat in m.get("categories", [])]
+        if prov:
+            result = [m for m in result if m.get("provider") == prov]
+        return result if result else filtered_models
 
     display_models = filtered_models  # initial view: all compatible models
 
@@ -376,7 +388,7 @@ def run_browser(stdscr, models, device_profile):
                     active_category = CATEGORY_CYCLE[(ci + 1) % len(CATEGORY_CYCLE)]
                 except (ValueError, NameError):
                     active_category = None
-                display_models = _apply_category(active_category)
+                display_models = _apply_filters(active_category, active_provider)
                 selected = 0
                 scroll_offset = 0
             continue
@@ -391,10 +403,16 @@ def run_browser(stdscr, models, device_profile):
         if selected >= len(display_models):
             selected = max(0, len(display_models) - 1)
 
-        cat_label = CATEGORY_ICONS.get(active_category, "All")
+        filter_parts = []
         if active_category:
-            cat_label += f" ({len(display_models)})"
-        draw_header(stdscr, device_profile, width, cat_label)
+            filter_parts.append(f"{CATEGORY_ICONS.get(active_category, active_category)}")
+        if active_provider:
+            filter_parts.append(f"🏢 {active_provider}")
+        
+        filter_label = " + ".join(filter_parts) if filter_parts else "All"
+        filter_label += f" ({len(display_models)}) [C/P]"
+        
+        draw_header(stdscr, device_profile, width, filter_label)
         draw_model_list(stdscr, display_models, selected, scroll_offset, list_top, list_height, width, benchmarks)
 
         current_model = display_models[selected] if display_models else None
@@ -419,7 +437,22 @@ def run_browser(stdscr, models, device_profile):
                 active_category = CATEGORY_CYCLE[(ci + 1) % len(CATEGORY_CYCLE)]
             except (ValueError, NameError):
                 active_category = None
-            display_models = _apply_category(active_category)
+            display_models = _apply_filters(active_category, active_provider)
+            selected = 0
+            scroll_offset = 0
+        elif key in (ord('p'), ord('P')):
+            try:
+                pi = PROVIDER_CYCLE.index(active_provider)
+                active_provider = PROVIDER_CYCLE[(pi + 1) % len(PROVIDER_CYCLE)]
+            except (ValueError, NameError):
+                active_provider = None
+            display_models = _apply_filters(active_category, active_provider)
+            selected = 0
+            scroll_offset = 0
+        elif key in (ord('u'), ord('U')):
+            show_unsupported = not show_unsupported
+            filtered_models = filter_models_for_device(all_models, device_profile, show_unsupported)
+            display_models = _apply_filters(active_category, active_provider)
             selected = 0
             scroll_offset = 0
         elif key in (ord('q'), ord('Q'), 27):  # Q or Escape
@@ -438,5 +471,5 @@ def show_browser(device_profile, models_json_path=None):
     if not filtered_models:
         return None, "no_models"
 
-    selected = curses.wrapper(run_browser, filtered_models, device_profile)
+    selected = curses.wrapper(run_browser, all_models, device_profile)
     return selected, "ok"
