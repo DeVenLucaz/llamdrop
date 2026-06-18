@@ -62,14 +62,14 @@ Two commands. No compilation. No configuration. No account needed.
 ### Device Intelligence
 - 🔍 **Full device profiling** — reads RAM, CPU model, core layout (big.LITTLE aware), CPU flags (AVX2/AVX512/NEON), GPU vendor, storage, Android SoC/API level
 - 🖥️ **5-tier classification** — Micro / Low / Low-Mid / Mid / High — auto-configures everything per tier
-- 🧠 **Backend auto-selection** — picks the correct backend for every platform×GPU combination: Termux pkg, CUDA, ROCm, Vulkan, or CPU
-- ⚡ **GPU acceleration** — Vulkan for Adreno/Mali/AMD desktop, CUDA for NVIDIA, Metal via Ollama on Apple Silicon
+- 🧠 **Backend auto-selection** — picks the correct backend for every platform×GPU combination: Termux pkg, Vulkan, or CPU
+- ⚡ **GPU acceleration** — Vulkan for Adreno/Mali/AMD/NVIDIA Linux desktops
 - ⚡ **Dynamic Backend Probing** — Runs a 10-second micro-benchmark on first boot to guarantee the fastest and most stable backend (CPU vs GPU) for your specific hardware.
 - 👋 **First-launch Device Profile** — shows detected specs card with tier, backend decision, runtime flags, and model recommendations. Runs once.
 
 ### Model Browser & Download
 - 📋 **Smart model browser** — two modes:
-  - ✅ **Verified catalog** — 41 curated models confirmed working across all device tiers, filtered automatically to show only what fits your hardware
+  - ✅ **Verified catalog** — curated models confirmed working across all device tiers, filtered automatically to show only what fits your hardware
   - 🔎 **Live HuggingFace search** — Search any GGUF model, or paste a raw HuggingFace download URL to bypass searching entirely.
 - ⬇️ **Resilient downloader** — auto-resumes on connection drops, retries automatically, verifies via SHA-256 checksum
 - 🎯 **Smart quantization** — picks the best Q4/Q2/Q5/IQ variant based on your *live* RAM at download time
@@ -78,7 +78,7 @@ Two commands. No compilation. No configuration. No account needed.
 - 🗂️ **Cancelled download cleanup** — partial files deleted immediately on cancel
 
 ### Chat & Inference
-- 🤖 **Ollama backend** — auto-detected on Linux/desktop and macOS, hardware-aware auto-tuning
+- 🤖 **Ollama backend** — auto-detected on Linux/desktop, hardware-aware auto-tuning
 - 💬 **Stable chat** — automatic context trimming prevents out-of-memory crashes. First exchange always preserved.
 - 🦙 **Live thinking indicator** — animated spinner with non-blocking stdout while the model generates
 - 🎯 **Prompt format auto-detect** — correct template per model family (ChatML, Llama3, Gemma, Phi3)
@@ -107,16 +107,15 @@ Two commands. No compilation. No configuration. No account needed.
 
 ## Model Catalog
 
-**Current verified catalog (41 models across 6 tiers):**
+**Current verified catalog (models across 5 tiers):**
 
 | Tier | Available RAM | Example Models |
 |---|---|---|
-| Micro | < 1 GB | SmolLM2 135M / 360M / 1.7B, Qwen2.5 0.5B, TinyLlama, Gemma 3 1B, Qwen3 1.7B |
-| Low | 1 – 3 GB | Qwen2.5 1.5B, Llama 3.2 1B, DeepSeek R1 1.5B, Gemma 2 2B, Phi-4 Mini, Qwen3 4B, SmolLM3 3B |
+| Micro | < 1 GB | SmolLM2 135M / 360M / 1.7B, Qwen3 0.6B, TinyLlama, Gemma 3 1B, Qwen3 1.7B |
+| Low | 1 – 3 GB | Qwen2.5 1.5B, Llama 3.2 1B, DeepSeek R1 1.5B, Qwen3 4B, SmolLM3 3B |
 | Low-Mid | 3 – 6 GB | Mistral 7B, Llama 3.1 8B, DeepSeek R1 7B, Qwen2.5 7B, Phi-3.5 Mini, Llama 3.2 3B |
-| Mid | 6 – 12 GB | Gemma 3 12B, Qwen3 8B, Phi-4 14B, DeepSeek R1 14B, Mistral NeMo 12B |
+| Mid | 6 – 12 GB | Gemma 3 12B, Qwen3 8B, DeepSeek R1 14B, Mistral NeMo 12B |
 | High | 12 – 24 GB | Gemma 3 27B, Qwen3 32B, DeepSeek R1 32B, Qwen2.5 Coder 32B |
-| Desktop | 24 GB+ | Llama 3.3 70B, Qwen2.5 72B, DeepSeek R1 70B |
 
 All verified models are free, open-source, and downloadable without login or account.
 The browser automatically hides models outside your device's tier — you only see what can actually run.
@@ -146,12 +145,10 @@ For full usage guides, see the [Wiki](https://github.com/DeVenLucaz/llamdrop/wik
 | Android via Termux | 🎯 Primary test platform | Built and tested here first |
 | Linux laptop / desktop | ✅ Fully supported | Any distro, x86_64 or ARM64 |
 | Raspberry Pi 4 / 5 | ✅ Fully supported | ARM64 |
-| macOS (Apple Silicon) | ✅ Fully supported | Ollama backend, GPU_LAYERS=999 |
-| macOS (Intel) | ✅ Fully supported | CPU backend |
-| Windows (native) | ✅ Fully supported | PowerShell installer, CUDA/Vulkan auto-detected |
-| Old Windows PC (WSL2) | ✅ Supported | Via Windows Subsystem for Linux |
 | Chromebook (Linux mode) | 🔄 Should work | ARM64 or x86_64 |
 | Orange Pi / SBC | 🔄 Should work | ARM64 Linux |
+| macOS | ❌ Dropped in v0.10.0 | Use Ollama desktop app instead |
+| Windows | ❌ Dropped in v0.10.0 | Use LM Studio / Ollama instead |
 | iOS | ❌ Not supported | No proper terminal environment |
 
 ---
@@ -161,16 +158,17 @@ For full usage guides, see the [Wiki](https://github.com/DeVenLucaz/llamdrop/wik
 ```
 llamdrop/
 ├── llamdrop.py          # Main entry point + CLI (update, doctor, version)
-├── install.sh           # One-line installer (Linux/Android/macOS/WSL)
-├── install.ps1          # Native Windows PowerShell installer
-├── models.json          # Verified model catalog (41 models, 6 tiers)
+├── install.sh           # One-line installer (Linux/Android)
+├── models.json          # Verified model catalog (tiers 1-5)
 ├── CHANGELOG.md         # Full version history
+├── LTS_V1.md            # LLAMdrop 1.0 LTS Master Plan
 ├── modules/
 │   ├── specs.py         # Full device profiling — DeviceProfile dataclass, tier, backend, flags
 │   ├── device.py        # Hardware detection bridge + legacy compat
 │   ├── browser.py       # Model browser — verified catalog + HF live search
 │   ├── downloader.py    # Resilient downloader + GGUF phone scanner
 │   ├── launcher.py      # llama.cpp wrapper + Vulkan + mmap + DeviceProfile-aware
+│   ├── prober.py        # Dynamic hardware benchmark prober
 │   ├── chat.py          # Chat loop + inference extraction + backend dispatch
 │   ├── ram_monitor.py   # Live RAM tracking and display
 │   ├── hf_search.py     # Live HuggingFace search
@@ -184,9 +182,6 @@ llamdrop/
 │   └── backends/
 │       ├── __init__.py  # Backends package
 │       └── ollama.py    # Ollama HTTP backend (auto-detected)
-├── tests/
-│   ├── test_specs.py    # Hardware tiering + device profiling tests
-│   └── test_prompts.py  # Prompt builder tests (ChatML, Llama3, etc.)
 └── docs/
     ├── CONTRIBUTING.md  # How to contribute
     └── DEVICES.md       # Community device compatibility list
@@ -196,20 +191,19 @@ llamdrop/
 
 ## Roadmap
 
-### v0.9.5 — Current
-- [x] RAM monitoring unified — single source of truth across all modules
-- [x] Inference blocking fixed — non-blocking stdout, smooth "Thinking..." animation
-- [x] Ollama first-class — hardware-aware auto-tuning, same as llama.cpp path
-- [x] Formal test suite added — `tests/` with 6 passing tests
-- [x] `doctor --cleanup` — detects and removes orphaned partial downloads
-- [x] GitHub URL migration — all references updated to DeVenLucaz/llamdrop
+### v0.10.0 — LTS Core Pivot (Current)
+- [x] **Dropped Desktop/macOS/Windows** — hyper-focus on Android/Linux/SBC.
+- [x] **Dynamic Hardware Prober** — Runs a benchmark on first boot to guarantee the fastest and most stable backend.
+- [x] **New Model Catalog** — Pruned outdated models, added new budget-friendly SOTAs (Qwen3, SmolLM3, DeepSeek R1).
+- [x] **UI Filters** — Filter by category or provider in the TUI.
+- [x] **Auto-Heal Doctor** — `[F]` hotkey to repair broken configs and environments.
+- [x] **Engine Auto-Update** — Fetch the latest `llama.cpp` upstream backend independently.
 
-### v1.0 — Planned
+### v1.0 — LTS Final
 - [ ] Web-based model catalog (GitHub Pages)
 - [ ] Community device profile submissions
 - [ ] `/doc` command — document chat with chunking (no vector DB needed)
 - [ ] llamdrop server mode — run on phone, access from browser on WiFi
-- [ ] Streaming tokens via Ollama backend
 - [ ] Multiple file context — attach more than one file to a conversation
 
 ---
