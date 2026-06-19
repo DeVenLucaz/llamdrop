@@ -24,6 +24,7 @@
 - **Dropped Desktop Tier**: Removed "Desktop" and "Workstation" (24GB+) tier logic from core configuration to heavily focus on Micro (under 1GB) to High (16GB+) hardware.
 
 ### Bug Fixes
+- **Model Scanner**: Fixed a bug where the `dummy_benchmark.gguf` file would appear in the user's "My downloaded models" list.
 - **Tests**: Fixed `test_specs.py` to remove deprecated `Tier.DESKTOP` and `Tier.WORKSTATION` references, aligning with the v0.10.0 tier removal.
 - **Browser Crash**: Fixed an `AttributeError` crash when opening the Model Browser caused by a malformed dict structure in `models.json`.
 - **Main Menu UI**: Fixed the main menu header showing "Unknown - 1 cores" by properly mapping the new `DeviceProfile` object into the legacy UI formatting logic.

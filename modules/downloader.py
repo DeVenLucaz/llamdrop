@@ -158,7 +158,7 @@ def get_all_gguf_files():
             for entry in os.scandir(base):
                 try:
                     if entry.is_file(follow_symlinks=False):
-                        if entry.name.lower().endswith(".gguf"):
+                        if entry.name.lower().endswith(".gguf") and not entry.name.startswith((".dummy", "_dummy")):
                             yield entry.path
                     elif entry.is_dir(follow_symlinks=False) and max_depth > 1:
                         yield from _walk(entry.path, max_depth - 1)
@@ -230,7 +230,7 @@ def get_downloaded_models():
     MIN_VALID_BYTES = 50 * 1024 * 1024  # 50MB — anything under this is a partial
     try:
         for fname in os.listdir(models_dir):
-            if not fname.endswith(".gguf"):
+            if not fname.endswith(".gguf") or fname.startswith((".dummy", "_dummy")):
                 continue
             fpath = os.path.join(models_dir, fname)
             size  = os.path.getsize(fpath)
