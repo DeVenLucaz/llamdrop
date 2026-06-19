@@ -24,6 +24,7 @@
 - **Dropped Desktop Tier**: Removed "Desktop" and "Workstation" (24GB+) tier logic from core configuration to heavily focus on Micro (under 1GB) to High (16GB+) hardware.
 
 ### Bug Fixes
+- **Tests**: Fixed `test_specs.py` to remove deprecated `Tier.DESKTOP` and `Tier.WORKSTATION` references, aligning with the v0.10.0 tier removal.
 - **Browser Crash**: Fixed an `AttributeError` crash when opening the Model Browser caused by a malformed dict structure in `models.json`.
 - **Main Menu UI**: Fixed the main menu header showing "Unknown - 1 cores" by properly mapping the new `DeviceProfile` object into the legacy UI formatting logic.
 - **Model Details UI**: Fixed a bug where `best_for` model attributes were rendered with terrible comma-spacing by removing an accidental `", ".join()` on strings.

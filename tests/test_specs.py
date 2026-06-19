@@ -18,8 +18,8 @@ class TestSpecs(unittest.TestCase):
         self.assertEqual(classify_tier(5.0), Tier.LOW_MID)
         self.assertEqual(classify_tier(10.0), Tier.MID)
         self.assertEqual(classify_tier(20.0), Tier.HIGH)
-        self.assertEqual(classify_tier(40.0), Tier.DESKTOP)
-        self.assertEqual(classify_tier(128.0), Tier.WORKSTATION)
+        self.assertEqual(classify_tier(40.0), Tier.HIGH)
+        self.assertEqual(classify_tier(128.0), Tier.HIGH)
 
     def test_select_threads(self):
         # x86 physical cores cap at 16
@@ -34,7 +34,7 @@ class TestSpecs(unittest.TestCase):
 
     def test_select_ctx_size(self):
         self.assertEqual(select_ctx_size(Tier.MICRO), 512)
-        self.assertEqual(select_ctx_size(Tier.WORKSTATION), 16384)
+        self.assertEqual(select_ctx_size(Tier.HIGH), 4096)
 
 if __name__ == '__main__':
     unittest.main()
